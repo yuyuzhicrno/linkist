@@ -1,6 +1,4 @@
-# Linkist — 下一代社区平台
-
-融合 Reddit 讨论区 + Discord 实时频道 + 专栏长文创作体系的下一代社区平台。
+# Linkist — 社区平台
 
 ## 技术栈
 
@@ -72,30 +70,6 @@
 | 10 | 传奇 | 730 |
 
 发帖 +10XP，评论 +3XP，创建频道 +20XP，接受好友 +5XP，更多 XP 奖励见代码。
-
-## 快速开始
-
-```bash
-# 1. 安装依赖
-cd linkist/server && npm install
-cd ../client && npm install
-
-# 2. 启动后端（端口 3001，内存数据库预填充种子数据）
-cd ../server && npm start
-
-# 3. 启动前端（端口 5173，API 代理至 3001）
-cd ../client && npm run dev
-
-# 4. 打开浏览器访问
-open http://localhost:5173
-```
-
-## 演示账户
-
-| 角色 | 邮箱 | 密码 |
-|------|------|------|
-| 管理员 | admin@linkist.io | admin123 |
-| 普通用户 | curly@linkist.io | pass123 |
 
 ## 项目结构
 
