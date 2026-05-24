@@ -1,0 +1,131 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Theme Variables ─────────────────────────────── */
+:root {
+  --accent: #7c3aed;
+  --accent-light: #a78bfa;
+  --accent-rgb: 124, 58, 237;
+
+  /* Light theme */
+  --surface-1: #ffffff;
+  --surface-2: #f8f7ff;
+  --surface-3: #ede9fe;
+  --text-primary: #0f0a1e;
+  --text-secondary: #4b4569;
+  --text-muted: #9ca3af;
+  --border: #e5e1f5;
+  --sidebar-bg: #1e1730;
+  --channel-bg: #251e38;
+}
+
+.dark {
+  --surface-1: #0f0a1e;
+  --surface-2: #1a1330;
+  --surface-3: #251e3c;
+  --text-primary: #f0eeff;
+  --text-secondary: #c4b8f0;
+  --text-muted: #6b5f8a;
+  --border: #2e2450;
+  --sidebar-bg: #07050f;
+  --channel-bg: #0f0a1e;
+}
+
+/* ── Scrollbar ───────────────────────────────────── */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Base ────────────────────────────────────────── */
+body {
+  background: var(--surface-1);
+  color: var(--text-primary);
+  font-family: 'Outfit', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Glass morphism ──────────────────────────────── */
+.glass {
+  background: rgba(var(--accent-rgb), 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(var(--accent-rgb), 0.12);
+}
+
+/* ── Code blocks ─────────────────────────────────── */
+.prose code:not(pre code) {
+  background: var(--surface-3);
+  color: var(--accent-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: 'JetBrains Mono', monospace;
+}
+.prose pre {
+  background: var(--surface-3) !important;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.2rem;
+  overflow-x: auto;
+}
+.prose pre code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.875em;
+  color: var(--text-secondary);
+}
+
+/* ── Markdown prose ──────────────────────────────── */
+.prose { color: var(--text-primary); max-width: none; }
+.prose h1,.prose h2,.prose h3 { color: var(--text-primary); font-weight: 700; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose a:hover { text-decoration: underline; }
+.prose blockquote { border-left: 3px solid var(--accent); padding-left: 1rem; color: var(--text-secondary); }
+.prose hr { border-color: var(--border); }
+
+/* ── Animations ──────────────────────────────────── */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
+  50% { box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0.15); }
+}
+.pulse-glow { animation: pulse-glow 2.5s infinite; }
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.float-anim { animation: float 3s ease-in-out infinite; }
+
+/* ── Input focus ─────────────────────────────────── */
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.35);
+}
+
+/* ── Accent variants ─────────────────────────────── */
+.btn-accent {
+  background: var(--accent);
+  color: #fff;
+  transition: all 0.2s;
+}
+.btn-accent:hover { filter: brightness(1.12); transform: translateY(-1px); }
+.btn-accent:active { transform: scale(0.98); }
+
+/* ── Channel sidebar ─────────────────────────────── */
+.channel-item:hover .channel-icon { transform: scale(1.08) rotate(-5deg); }
+.channel-icon { transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* ── Vote button ─────────────────────────────────── */
+.vote-btn { transition: all 0.15s; }
+.vote-btn:hover { transform: scale(1.1); }
+.vote-btn.active-up { color: #f97316; }
+.vote-btn.active-down { color: #06b6d4; }
+
+/* ── Shimmer skeleton ────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
