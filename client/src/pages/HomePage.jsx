@@ -34,7 +34,7 @@ export default function HomePage() {
             下一代社区平台
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight text-[var(--text-primary)] mb-3">
-            欢迎来到 <span style={{ color: 'var(--accent)' }}>Nexus</span>
+            欢迎来到 <span style={{ color: 'var(--accent)' }}>Linkist</span>
           </h1>
           <p className="text-[var(--text-secondary)] max-w-lg mb-6">
             融合 Reddit 的讨论精华、Discord 的即时频道与专栏深度创作，一站式打造你的知识社区。

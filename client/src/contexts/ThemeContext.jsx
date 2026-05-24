@@ -17,13 +17,13 @@ const ACCENTS = [
 export function ThemeProvider({ children }) {
   const { user, updateUser } = useAuth();
   const [theme, setThemeState] = useState(() => {
-    return localStorage.getItem('nexus_theme') || 'dark';
+    return localStorage.getItem('linkist_theme') || 'dark';
   });
   const [accentColor, setAccentState] = useState(() => {
-    return localStorage.getItem('nexus_accent') || '#7c3aed';
+    return localStorage.getItem('linkist_accent') || '#7c3aed';
   });
   const [fontSize, setFontSizeState] = useState(() => {
-    return localStorage.getItem('nexus_font') || 'base';
+    return localStorage.getItem('linkist_font') || 'base';
   });
 
   // Apply theme
@@ -34,7 +34,7 @@ export function ThemeProvider({ children }) {
     } else {
       root.classList.remove('dark');
     }
-    localStorage.setItem('nexus_theme', theme);
+    localStorage.setItem('linkist_theme', theme);
   }, [theme]);
 
   // Apply accent
@@ -48,14 +48,14 @@ export function ThemeProvider({ children }) {
     const g = parseInt(hex.slice(2, 4), 16);
     const b = parseInt(hex.slice(4, 6), 16);
     root.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
-    localStorage.setItem('nexus_accent', accentColor);
+    localStorage.setItem('linkist_accent', accentColor);
   }, [accentColor]);
 
   // Apply font size
   useEffect(() => {
     const sizes = { sm: '14px', base: '16px', lg: '18px' };
     document.documentElement.style.fontSize = sizes[fontSize] || '16px';
-    localStorage.setItem('nexus_font', fontSize);
+    localStorage.setItem('linkist_font', fontSize);
   }, [fontSize]);
 
   // Sync from user settings when user logs in

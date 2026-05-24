@@ -37,7 +37,7 @@ export function LoginPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">欢迎回来</h1>
-          <p className="text-sm text-[var(--text-muted)] mt-1">登录你的 Nexus 账户</p>
+          <p className="text-sm text-[var(--text-muted)] mt-1">登录你的 Linkist 账户</p>
         </div>
 
         <Card className="p-6">
@@ -67,24 +67,6 @@ export function LoginPage() {
               {loading ? '登录中...' : '登录'}
             </Button>
           </form>
-
-          <div className="mt-4 text-center">
-            <div className="text-sm text-[var(--text-muted)] mb-3">演示账户</div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => { setForm({ email: 'admin@nexus.io', password: 'admin123' }); }}
-                className="px-3 py-2 text-xs rounded-xl bg-[var(--surface-3)] border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] transition-colors"
-              >
-                admin@nexus.io
-              </button>
-              <button
-                onClick={() => { setForm({ email: 'curly@nexus.io', password: 'pass123' }); }}
-                className="px-3 py-2 text-xs rounded-xl bg-[var(--surface-3)] border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--accent)]/10 hover:text-[var(--accent)] transition-colors"
-              >
-                curly@nexus.io
-              </button>
-            </div>
-          </div>
         </Card>
 
         <p className="text-center text-sm text-[var(--text-muted)] mt-4">
@@ -128,7 +110,7 @@ export function RegisterPage() {
               <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">加入 Nexus</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">加入 Linkist</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">创建你的账户，开始探索</p>
         </div>
 

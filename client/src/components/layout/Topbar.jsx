@@ -71,7 +71,7 @@ export function Topbar({ onMenuToggle }) {
               <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <span className="font-bold text-lg tracking-tight text-[var(--text-primary)]">Nexus</span>
+          <span className="font-bold text-lg tracking-tight text-[var(--text-primary)]">Linkist</span>
         </Link>
       </div>
 

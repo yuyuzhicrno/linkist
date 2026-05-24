@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { db, calcLevel, CHANNEL_CREATE_LEVEL, addXp } from '../data/db.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'nexus_dev_secret_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'linkist_dev_secret_2026';
 const getUser = (req) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return null;

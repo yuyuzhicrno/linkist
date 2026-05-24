@@ -1,6 +1,6 @@
 const BASE = '/api';
 
-const getToken = () => localStorage.getItem('nexus_token');
+const getToken = () => localStorage.getItem('linkist_token');
 
 const request = async (method, path, body, token) => {
   const headers = { 'Content-Type': 'application/json' };

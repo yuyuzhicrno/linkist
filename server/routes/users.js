@@ -2,7 +2,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { db, safeUser, addXp, calcLevel, CHANNEL_CREATE_LEVEL } from '../data/db.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'nexus_dev_secret_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'linkist_dev_secret_2026';
 const getUser = (req) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return null;

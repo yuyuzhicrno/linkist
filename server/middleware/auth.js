@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'nexus_dev_secret_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'linkist_dev_secret_2026';
 
 export const authenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;

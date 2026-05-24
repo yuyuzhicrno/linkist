@@ -2,7 +2,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { db, safeUser } from '../data/db.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'nexus_dev_secret_2026';
+const JWT_SECRET = process.env.JWT_SECRET || 'linkist_dev_secret_2026';
 
 // Simple inline auth helper
 const getUser = (req) => {

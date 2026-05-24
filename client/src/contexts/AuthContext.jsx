@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('nexus_token');
+    const token = localStorage.getItem('linkist_token');
     if (token) {
       api.get('/auth/me', token)
         .then(data => { if (!data.error) setUser(data); })
@@ -21,7 +21,7 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     const data = await api.post('/auth/login', { email, password });
     if (data.error) throw new Error(data.error);
-    localStorage.setItem('nexus_token', data.token);
+    localStorage.setItem('linkist_token', data.token);
     setUser(data.user);
     return data.user;
   };
@@ -29,18 +29,18 @@ export function AuthProvider({ children }) {
   const register = async (username, email, password) => {
     const data = await api.post('/auth/register', { username, email, password });
     if (data.error) throw new Error(data.error);
-    localStorage.setItem('nexus_token', data.token);
+    localStorage.setItem('linkist_token', data.token);
     setUser(data.user);
     return data.user;
   };
 
   const logout = () => {
-    localStorage.removeItem('nexus_token');
+    localStorage.removeItem('linkist_token');
     setUser(null);
   };
 
   const updateUser = (updates) => {
-    const token = localStorage.getItem('nexus_token');
+    const token = localStorage.getItem('linkist_token');
     return api.put('/users/me', updates, token).then(data => {
       if (!data.error) setUser(data);
       return data;

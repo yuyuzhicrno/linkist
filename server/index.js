@@ -30,5 +30,5 @@ app.use('/api/polls', pollsRouter);
 app.get('/api/health', (_, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
 app.listen(PORT, () => {
-  console.log(`Nexus Forum API running on http://localhost:${PORT}`);
+  console.log(`Linkist API running on http://localhost:${PORT}`);
 });

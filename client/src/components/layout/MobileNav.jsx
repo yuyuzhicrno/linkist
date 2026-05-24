@@ -21,7 +21,7 @@ export function MobileNav({ onClose }) {
           <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-[var(--accent)] flex items-center justify-center text-white text-sm font-bold">N</div>
-              <span className="font-bold text-[var(--text-primary)]">Nexus</span>
+              <span className="font-bold text-[var(--text-primary)]">Linkist</span>
             </div>
             <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-3)] text-[var(--text-muted)]">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
