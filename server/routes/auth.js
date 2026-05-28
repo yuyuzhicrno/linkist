@@ -14,10 +14,42 @@ const transporter = nodemailer.createTransport({
   port: process.env.SMTP_PORT || 587,
   secure: false,
   auth: {
-    user: process.env.SMTP_USER || 'ethereal_user@ethereal.email',
-    pass: process.env.SMTP_PASS || 'ethereal_pass'
-  }
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || ''
+  },
+  ignoreTLS: true
 });
+
+let testAccount = null;
+
+async function sendVerificationEmail(email, verifyUrl) {
+  try {
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      testAccount = testAccount || await nodemailer.createTestAccount();
+      transporter.options.auth = {
+        user: testAccount.user,
+        pass: testAccount.pass
+      };
+    }
+
+    const info = await transporter.sendMail({
+      from: 'no-reply@linkist.app',
+      to: email,
+      subject: '验证你的邮箱地址',
+      html: `<p>欢迎加入 Linkist！请点击下方链接验证你的邮箱：</p>
+             <p><a href="${verifyUrl}">${verifyUrl}</a></p>
+             <p>该链接将在24小时内过期。</p>`
+    });
+
+    console.log('验证邮件发送成功！');
+    console.log('预览链接:', nodemailer.getTestMessageUrl(info));
+    return true;
+  } catch (err) {
+    console.error('邮件发送失败:', err.message);
+    console.log('⚠️  开发环境：验证链接（请手动访问）:', verifyUrl);
+    return false;
+  }
+}
 
 function generateVerificationToken() {
   return crypto.randomBytes(32).toString('hex');
@@ -70,20 +102,9 @@ authRouter.post('/register', async (req, res) => {
   
   await saveDatabase();
 
-  const verifyUrl = `${BASE_URL}/verify-email?token=${verificationToken}`;
+  const verifyUrl = `${BASE_URL}/api/auth/verify-email?token=${verificationToken}`;
   
-  try {
-    await transporter.sendMail({
-      from: 'no-reply@linkist.app',
-      to: email,
-      subject: '验证你的邮箱地址',
-      html: `<p>欢迎加入 Linkist！请点击下方链接验证你的邮箱：</p>
-             <p><a href="${verifyUrl}">${verifyUrl}</a></p>
-             <p>该链接将在24小时内过期。</p>`
-    });
-  } catch (err) {
-    console.error('Failed to send verification email:', err);
-  }
+  await sendVerificationEmail(email, verifyUrl);
 
   res.json({ success: true, message: '注册成功，请检查邮箱验证链接' });
 });
@@ -116,22 +137,11 @@ authRouter.post('/resend-verification', async (req, res) => {
   user.verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000;
   await saveDatabase();
 
-  const verifyUrl = `${BASE_URL}/verify-email?token=${user.verificationToken}`;
+  const verifyUrl = `${BASE_URL}/api/auth/verify-email?token=${user.verificationToken}`;
 
-  try {
-    await transporter.sendMail({
-      from: 'no-reply@linkist.app',
-      to: email,
-      subject: '验证你的邮箱地址',
-      html: `<p>请点击下方链接验证你的邮箱：</p>
-             <p><a href="${verifyUrl}">${verifyUrl}</a></p>
-             <p>该链接将在24小时内过期。</p>`
-    });
-    res.json({ success: true, message: '验证邮件已发送，请检查邮箱' });
-  } catch (err) {
-    console.error('Failed to send verification email:', err);
-    res.status(500).json({ error: '发送邮件失败，请稍后重试' });
-  }
+  await sendVerificationEmail(email, verifyUrl);
+
+  res.json({ success: true, message: '验证邮件已发送，请检查邮箱' });
 });
 
 authRouter.post('/login', async (req, res) => {
