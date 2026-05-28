@@ -13,7 +13,7 @@
 | Markdown | react-markdown + remark-gfm |
 | 后端框架 | Express 4 |
 | 认证 | JWT（bcryptjs 密码哈希） |
-| 数据库 | 内存存储（种子数据预填充） |
+| 数据库 | 文件存储（LowDB）+ PostgreSQL 支持 |
 
 ## 功能特性
 
@@ -40,15 +40,17 @@
 
 ### 用户系统
 - 注册/登录（JWT 认证，7 天有效期）
+- 邮箱验证（注册后需验证才能登录）
 - 个人主页（帖子/专栏统计）
-- 头像上传
+- 头像上传（文件存储 + CDN 路径）
 - 主题自定义（深色/浅色、8 种主题色、3 档字号）
 - 等级系统（0-10 级，经验值驱动）
 
 ### 社交功能
 - 好友系统（申请/接受/解除）
-- 私信聊天（未读计数）
+- 私信聊天（未读计数） + WebSocket 实时推送
 - 社区统计数据
+- 通知系统（点赞/评论/回复/好友请求实时推送）
 
 ### 投票系统
 - 创建投票（支持单选/多选、截止时间）
@@ -152,6 +154,12 @@ linkist/
 - `POST /` — 创建投票
 - `POST /:id/vote` — 投票
 
+### 通知 `/api/notifications`
+- `GET /` — 获取通知列表
+- `PUT /:id/read` — 标记单条已读
+- `PUT /read-all` — 全部标记已读
+- `DELETE /:id` — 删除通知
+
 ### 其他
 - `GET /api/discussion/stats` — 社区统计
 - `GET /api/discussion/categories` — 分类列表
@@ -172,6 +180,11 @@ linkist/
 | `PORT` | 3001 | 后端端口 |
 | `JWT_SECRET` | `linkist_dev_secret_2026` | JWT 签名密钥 |
 | `CORS_ORIGIN` | `http://localhost:5173` | 允许的跨域来源 |
+| `SMTP_HOST` | `smtp.ethereal.email` | SMTP 服务器地址 |
+| `SMTP_PORT` | 587 | SMTP 服务器端口 |
+| `SMTP_USER` | `ethereal_user@ethereal.email` | SMTP 用户名 |
+| `SMTP_PASS` | `ethereal_pass` | SMTP 密码 |
+| `BASE_URL` | `http://localhost:3001` | 基础 URL（用于生成邮箱验证链接） |
 
 ## License
 
