@@ -7,7 +7,7 @@ export const tagsRouter = Router();
 // GET all tags (with optional search)
 tagsRouter.get('/', (req, res) => {
   const { q, limit = 50 } = req.query;
-  let tags = [...db.tags];
+  let tags = [...db.data.tags];
   if (q) tags = tags.filter(t => t.name.toLowerCase().includes(q.toLowerCase()));
   tags.sort((a, b) => b.count - a.count);
   res.json(tags.slice(0, Number(limit)));
@@ -16,10 +16,10 @@ tagsRouter.get('/', (req, res) => {
 // GET posts/articles by tag
 tagsRouter.get('/:tag/content', (req, res) => {
   const tag = decodeURIComponent(req.params.tag);
-  const posts = db.posts
+  const posts = db.data.posts
     .filter(p => p.tags.includes(tag))
     .map(p => {
-      const author = db.users.find(u => u.id === p.authorId);
+      const author = db.data.users.find(u => u.id === p.authorId);
       return {
         type: 'post',
         id: p.id,
@@ -31,9 +31,9 @@ tagsRouter.get('/:tag/content', (req, res) => {
       };
     });
   const articles = [];
-  db.columns.forEach(col => {
+  db.data.columns.forEach(col => {
     col.articles.filter(a => a.tags.includes(tag)).forEach(a => {
-      const author = db.users.find(u => u.id === col.authorId);
+      const author = db.data.users.find(u => u.id === col.authorId);
       articles.push({
         type: 'article',
         id: a.id,

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../utils/api.js';
-import { formatTime } from '../utils/helpers.js';
 
 function TagCloud({ tags, selectedTag, onSelect }) {
   return (

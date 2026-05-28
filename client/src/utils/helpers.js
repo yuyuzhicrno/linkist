@@ -10,6 +10,13 @@ export const timeAgo = (dateStr) => {
   return new Date(dateStr).toLocaleDateString('zh-CN');
 };
 
+export const escapeHtml = (str) => {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+};
+
 export const formatDate = (dateStr) =>
   new Date(dateStr).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
 

@@ -11,7 +11,11 @@ const request = async (method, path, body, token) => {
     headers,
     body: body ? JSON.stringify(body) : undefined,
   });
-  return res.json();
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || `Request failed with status ${res.status}`);
+  }
+  return data;
 };
 
 export const api = {

@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../utils/api.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
-import { formatTime } from '../utils/helpers.js';
+import { timeAgo } from '../utils/helpers.js';
+import { onDmMessage } from '../services/socket.js';
 import LevelBadge from '../components/ui/LevelBadge.jsx';
 
 function Avatar({ user, size = 36 }) {
@@ -174,6 +175,15 @@ function ChatWindow({ targetUser, onBack }) {
   }, [targetUser]);
 
   useEffect(() => {
+    const unsub = onDmMessage(({ message }) => {
+      if (message.sender?.id === targetUser?.id || message.senderId === targetUser?.id) {
+        setMessages(prev => [...prev, message]);
+      }
+    });
+    return unsub;
+  }, [targetUser]);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
@@ -227,7 +237,7 @@ function ChatWindow({ targetUser, onBack }) {
                 >
                   {msg.content}
                 </div>
-                <span className="text-[10px] text-[var(--text-muted)] px-1">{formatTime(msg.createdAt)}</span>
+                <span className="text-[10px] text-[var(--text-muted)] px-1">{timeAgo(msg.createdAt)}</span>
               </div>
             </div>
           );

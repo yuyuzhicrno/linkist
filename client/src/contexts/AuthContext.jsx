@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../utils/api.js';
+import { initSocket, disconnectSocket } from '../services/socket.js';
 
 const AuthContext = createContext(null);
 
@@ -11,7 +12,7 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('linkist_token');
     if (token) {
       api.get('/auth/me', token)
-        .then(data => { if (!data.error) setUser(data); })
+        .then(data => { if (!data.error) { setUser(data); initSocket(token); } })
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
@@ -23,6 +24,7 @@ export function AuthProvider({ children }) {
     if (data.error) throw new Error(data.error);
     localStorage.setItem('linkist_token', data.token);
     setUser(data.user);
+    initSocket(data.token);
     return data.user;
   };
 
@@ -31,11 +33,13 @@ export function AuthProvider({ children }) {
     if (data.error) throw new Error(data.error);
     localStorage.setItem('linkist_token', data.token);
     setUser(data.user);
+    initSocket(data.token);
     return data.user;
   };
 
   const logout = () => {
     localStorage.removeItem('linkist_token');
+    disconnectSocket();
     setUser(null);
   };
 

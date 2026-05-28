@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'linkist_dev_secret_2026';
 const getUser = (req) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return null;
-  try { const { userId } = jwt.verify(auth.slice(7), JWT_SECRET); return db.users.find(u => u.id === userId) || null; }
+  try { const { userId } = jwt.verify(auth.slice(7), JWT_SECRET); return db.data.users.find(u => u.id === userId) || null; }
   catch { return null; }
 };
 
@@ -15,8 +15,8 @@ export const columnsRouter = Router();
 
 // GET all columns
 columnsRouter.get('/', (req, res) => {
-  const columns = db.columns.map(col => {
-    const author = db.users.find(u => u.id === col.authorId);
+  const columns = db.data.columns.map(col => {
+    const author = db.data.users.find(u => u.id === col.authorId);
     return { ...col, author: author ? { id: author.id, username: author.username, avatar: author.avatar } : null, articleCount: col.articles.length };
   });
   res.json(columns);
@@ -24,9 +24,9 @@ columnsRouter.get('/', (req, res) => {
 
 // GET single column
 columnsRouter.get('/:id', (req, res) => {
-  const col = db.columns.find(c => c.id === req.params.id || c.slug === req.params.id);
+  const col = db.data.columns.find(c => c.id === req.params.id || c.slug === req.params.id);
   if (!col) return res.status(404).json({ error: 'Column not found' });
-  const author = db.users.find(u => u.id === col.authorId);
+  const author = db.data.users.find(u => u.id === col.authorId);
   res.json({ ...col, author: author ? { id: author.id, username: author.username, avatar: author.avatar } : null });
 });
 
@@ -44,18 +44,18 @@ columnsRouter.post('/', (req, res) => {
     followers: [], articles: [],
     createdAt: new Date().toISOString()
   };
-  db.columns.push(col);
+  db.data.columns.push(col);
   res.json(col);
 });
 
 // GET article
 columnsRouter.get('/:colId/articles/:artId', (req, res) => {
-  const col = db.columns.find(c => c.id === req.params.colId);
+  const col = db.data.columns.find(c => c.id === req.params.colId);
   if (!col) return res.status(404).json({ error: 'Column not found' });
   const art = col.articles.find(a => a.id === req.params.artId);
   if (!art) return res.status(404).json({ error: 'Article not found' });
   art.views++;
-  const author = db.users.find(u => u.id === col.authorId);
+  const author = db.data.users.find(u => u.id === col.authorId);
   res.json({ ...art, column: { id: col.id, title: col.title, author: author ? { id: author.id, username: author.username } : null } });
 });
 
@@ -63,7 +63,7 @@ columnsRouter.get('/:colId/articles/:artId', (req, res) => {
 columnsRouter.post('/:id/articles', (req, res) => {
   const user = getUser(req);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const col = db.columns.find(c => c.id === req.params.id);
+  const col = db.data.columns.find(c => c.id === req.params.id);
   if (!col) return res.status(404).json({ error: 'Column not found' });
   if (col.authorId !== user.id) return res.status(403).json({ error: 'Forbidden' });
   const { title, summary, content, tags } = req.body;
@@ -83,7 +83,7 @@ columnsRouter.post('/:id/articles', (req, res) => {
 columnsRouter.post('/:colId/articles/:artId/like', (req, res) => {
   const user = getUser(req);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const col = db.columns.find(c => c.id === req.params.colId);
+  const col = db.data.columns.find(c => c.id === req.params.colId);
   const art = col?.articles.find(a => a.id === req.params.artId);
   if (!art) return res.status(404).json({ error: 'Article not found' });
   const idx = art.likes.indexOf(user.id);
@@ -95,7 +95,7 @@ columnsRouter.post('/:colId/articles/:artId/like', (req, res) => {
 columnsRouter.post('/:id/follow', (req, res) => {
   const user = getUser(req);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const col = db.columns.find(c => c.id === req.params.id);
+  const col = db.data.columns.find(c => c.id === req.params.id);
   if (!col) return res.status(404).json({ error: 'Column not found' });
   const idx = col.followers.indexOf(user.id);
   if (idx === -1) col.followers.push(user.id); else col.followers.splice(idx, 1);

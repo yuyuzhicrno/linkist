@@ -5,6 +5,7 @@ import { timeAgo } from '../utils/helpers.js';
 import { Avatar } from '../components/ui/Avatar.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { joinChannel, leaveChannel, onChannelMessage, onChannelReaction } from '../services/socket.js';
 
 export default function ChannelsPage() {
   const { user } = useAuth();
@@ -147,11 +148,33 @@ function ChatArea({ channel, user }) {
 
   useEffect(() => {
     setLoading(true);
+    joinChannel(channelId);
     api.get(`/channels/${channelId}`).then(data => {
       setMessages(data.messages || []);
       setLoading(false);
     });
+
+    return () => {
+      leaveChannel(channelId);
+    };
   }, [channelId]);
+
+  useEffect(() => {
+    const unsubMessage = onChannelMessage((msg) => {
+      if (msg.authorId !== user?.id) {
+        setMessages(m => [...m, msg]);
+      }
+    });
+
+    const unsubReaction = onChannelReaction(({ messageId, reactions }) => {
+      setMessages(m => m.map(msg => msg.id === messageId ? { ...msg, reactions } : msg));
+    });
+
+    return () => {
+      unsubMessage();
+      unsubReaction();
+    };
+  }, [user]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
