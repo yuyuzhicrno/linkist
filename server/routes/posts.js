@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { db, addXp, syncTagCount, saveDatabase, flushDatabase } from '../data/db.js';
+import { db, addXp, syncTagCount, saveDatabase, flushDatabase, recordDbOp } from '../data/db.js';
 import { createNotification } from './notifications.js';
+import { validate, schemas, sanitizeInput } from '../middleware/validation.js';
+import { getJwtSecret } from '../config/index.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'linkist_dev_secret_2026';
 const getUser = (req) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return null;
-  try { const { userId } = jwt.verify(auth.slice(7), JWT_SECRET); return db.data.users.find(u => u.id === userId) || null; }
+  try { const { userId } = jwt.verify(auth.slice(7), getJwtSecret()); return db.data.users.find(u => u.id === userId) || null; }
   catch { return null; }
 };
 
@@ -67,17 +68,18 @@ postsRouter.get('/:id', (req, res) => {
 });
 
 // POST create post
-postsRouter.post('/', (req, res) => {
+postsRouter.post('/', validate(schemas.createPost), (req, res) => {
   const user = getUser(req);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
   const { title, content, category, tags, flair } = req.body;
-  if (!title || !content) return res.status(400).json({ error: 'Title and content required' });
   const post = {
-    id: uuidv4(), title, content,
+    id: uuidv4(), 
+    title: sanitizeInput(title), 
+    content: sanitizeInput(content),
     authorId: user.id,
-    category: category || '综合',
-    tags: Array.isArray(tags) ? tags : [],
-    flair: flair || '',
+    category: sanitizeInput(category) || '综合',
+    tags: Array.isArray(tags) ? tags.map(t => sanitizeInput(t)) : [],
+    flair: sanitizeInput(flair) || '',
     upvotes: [], downvotes: [],
     views: 0,
     comments: [],
@@ -86,6 +88,7 @@ postsRouter.post('/', (req, res) => {
     pollId: null
   };
   db.data.posts.push(post);
+  recordDbOp('insert', 'posts', post.id, post);
   addXp(user.id, 10);
   post.tags.forEach(t => syncTagCount(t));
   flushDatabase();
@@ -105,6 +108,7 @@ postsRouter.post('/:id/vote', (req, res) => {
   post.downvotes = post.downvotes.filter(id => id !== user.id);
   if (type === 'up' && !wasUp) { post.upvotes.push(user.id); addXp(user.id, 1); addXp(post.authorId, 2); if (post.authorId !== user.id) createNotification(post.authorId, 'upvote', '有人赞了你的帖子', `用户 ${user.username} 赞了你的帖子「${post.title}」`, { postId: post.id }); }
   else if (type === 'down' && !wasDown) { post.downvotes.push(user.id); }
+  recordDbOp('update', 'posts', post.id);
   flushDatabase();
   res.json({ upvotes: post.upvotes.length, downvotes: post.downvotes.length, voteCount: post.upvotes.length - post.downvotes.length });
 });
@@ -125,6 +129,7 @@ postsRouter.post('/:id/comments', (req, res) => {
     createdAt: new Date().toISOString()
   };
   post.comments.push(comment);
+  recordDbOp('update', 'posts', post.id);
   addXp(user.id, 3);
   addXp(post.authorId, 1);
   if (post.authorId !== user.id) createNotification(post.authorId, 'comment', '有人评论了你的帖子', `用户 ${user.username} 评论了你的帖子「${post.title}」`, { postId: post.id, commentId: comment.id });
@@ -233,6 +238,24 @@ postsRouter.delete('/:id', (req, res) => {
   if (db.data.posts[idx].authorId !== user.id && user.role !== 'admin')
     return res.status(403).json({ error: 'Forbidden' });
   db.data.posts.splice(idx, 1);
+  recordDbOp('delete', 'posts', req.params.id);
   flushDatabase();
   res.json({ success: true });
+});
+
+// PATCH pin/unpin post
+postsRouter.patch('/:id/pin', (req, res) => {
+  const user = getUser(req);
+  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  const idx = db.data.posts.findIndex(p => p.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Not found' });
+  const post = db.data.posts[idx];
+  if (post.authorId !== user.id && user.role !== 'admin')
+    return res.status(403).json({ error: '只有帖子作者或管理员可以置顶帖子' });
+
+  const isPinned = req.body.isPinned !== undefined ? req.body.isPinned : !post.isPinned;
+  post.isPinned = isPinned;
+  recordDbOp('update', 'posts', post.id);
+  flushDatabase();
+  res.json({ success: true, isPinned: post.isPinned });
 });

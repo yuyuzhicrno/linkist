@@ -5,8 +5,8 @@ services:
     image: postgres:16-alpine
     container_name: linkist_postgres
     environment:
-      POSTGRES_USER: linkist
-      POSTGRES_PASSWORD: linkist_password_2026
+      POSTGRES_USER: ${POSTGRES_USER:-linkist}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_DB: linkist
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -29,9 +29,10 @@ services:
       NODE_ENV: production
       PORT: 3001
       DB_TYPE: postgres
-      DATABASE_URL: postgresql://linkist:linkist_password_2026@postgres:5432/linkist
-      JWT_SECRET: linkist_production_secret_2026_change_in_production
-      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+      DATABASE_URL: postgresql://${POSTGRES_USER:-linkist}:${POSTGRES_PASSWORD}@postgres:5432/linkist
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in production}
+      SEED_PASSWORD: ${SEED_PASSWORD:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
     depends_on:
       postgres:
         condition: service_healthy

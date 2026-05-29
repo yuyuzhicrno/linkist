@@ -239,7 +239,12 @@ class PostgresDB {
   async _seedData() {
     const userCheck = await this.pool.query('SELECT id FROM users WHERE email = $1', ['admin@example.com']);
     if (userCheck.rows.length === 0) {
-      const passwordHash = bcrypt.hashSync('123456', 10);
+      const seedPassword = process.env.SEED_PASSWORD || (process.env.NODE_ENV === 'production' ? null : 'dev_password_123');
+      if (!seedPassword && process.env.NODE_ENV === 'production') {
+        console.warn('⚠️  生产环境未设置 SEED_PASSWORD，跳过种子数据创建');
+        return;
+      }
+      const passwordHash = bcrypt.hashSync(seedPassword, 10);
       await this.pool.query(`
         INSERT INTO users (id, username, email, "passwordHash", bio, role, xp, theme, "accentColor", "isVerified")
         VALUES
@@ -253,17 +258,17 @@ class PostgresDB {
         VALUES ('c1', '通用讨论', 'general', '什么都可以聊！', '💬', '#7c3aed', true, ARRAY['u1', 'u2', 'u3']::uuid[])
         ON CONFLICT (slug) DO NOTHING
       `);
-      console.log('PostgreSQL seed data created');
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('PostgreSQL seed data created');
+        console.log(`📝 种子账户密码: ${seedPassword}`);
+      }
       await this._loadData();
     }
   }
 
   _startSync() {
     setInterval(async () => {
-      if (pendingSave) {
-        await this._syncToDb();
-        pendingSave = false;
-      }
+      await this.flushOps();
     }, 5000);
   }
 
@@ -377,7 +382,12 @@ class FileDB {
     }
 
     if (this._lowdb.data.users.length === 0) {
-      const passwordHash = bcrypt.hashSync('123456', 10);
+      const seedPassword = process.env.SEED_PASSWORD || (process.env.NODE_ENV === 'production' ? null : 'dev_password_123');
+      if (!seedPassword && process.env.NODE_ENV === 'production') {
+        console.warn('⚠️  生产环境未设置 SEED_PASSWORD，跳过种子数据创建');
+        return;
+      }
+      const passwordHash = bcrypt.hashSync(seedPassword, 10);
       this._lowdb.data.users = [
         {
           id: 'u1',
@@ -430,6 +440,9 @@ class FileDB {
       ];
       this._lowdb.data.channels[0].memberIds = ['u1', 'u2', 'u3'];
       this._lowdb.write();
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`📝 种子账户密码: ${seedPassword}`);
+      }
     }
     this._ready = true;
   }
@@ -467,13 +480,34 @@ export function flushDatabase() {
       clearTimeout(autoSaveTimer);
       autoSaveTimer = null;
     }
-    if (pendingSave && dbInstance?.write) {
+    if (dbInstance?.write) {
       dbInstance.write();
       pendingSave = false;
     }
   } else if (DB_TYPE === 'postgres' && dbInstance?.pool) {
-    dbInstance._syncToDb && dbInstance._syncToDb();
+    dbInstance.flushOps && dbInstance.flushOps();
   }
+}
+
+export function recordDbOp(type, table, id, data = null) {
+  if (DB_TYPE === 'postgres' && dbInstance?.recordOp) {
+    dbInstance.recordOp(type, table, id, data);
+  }
+}
+
+export function getDb() {
+  if (DB_TYPE === 'postgres') {
+    return {
+      type: DB_TYPE,
+      data: {},
+      instance: dbInstance
+    };
+  }
+  return {
+    type: DB_TYPE,
+    data: dbInstance?._lowdb?.data || {},
+    instance: dbInstance
+  };
 }
 
 export async function initDatabase() {

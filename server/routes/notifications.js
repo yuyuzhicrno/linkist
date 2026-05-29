@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from '../data/db.js';
+import { db, flushDatabase, recordDbOp } from '../data/db.js';
 import { emitToUser } from '../services/socket.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'linkist_dev_secret_2026';
@@ -28,6 +28,8 @@ export function createNotification(userId, type, title, message, data = {}) {
 
   if (db.data?.notifications) {
     db.data.notifications.unshift(notification);
+    recordDbOp('insert', 'notifications', notification.id, notification);
+    flushDatabase();
   }
 
   emitToUser(userId, 'notification:new', notification);

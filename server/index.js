@@ -7,6 +7,7 @@ import http from 'http';
 import rateLimit from 'express-rate-limit';
 import { initDatabase, startAutoSave } from './data/db.js';
 import { initSocket } from './services/socket.js';
+import { validateConfig, getJwtSecret } from './config/index.js';
 import { authRouter } from './routes/auth.js';
 import { channelsRouter } from './routes/channels.js';
 import { postsRouter } from './routes/posts.js';
@@ -23,10 +24,10 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-const requiredEnvVars = ['JWT_SECRET'];
-const missingVars = requiredEnvVars.filter(v => !process.env[v]);
-if (missingVars.length > 0) {
-  console.error(`Missing required environment variables: ${missingVars.join(', ')}`);
+try {
+  validateConfig();
+} catch (err) {
+  console.error(err.message);
   process.exit(1);
 }
 

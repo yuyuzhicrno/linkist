@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { db, safeUser, addXp, flushDatabase } from '../data/db.js';
+import { db, safeUser, addXp, flushDatabase, recordDbOp } from '../data/db.js';
 import { emitDmToParticipants } from '../services/socket.js';
 import { createNotification } from './notifications.js';
 
@@ -128,6 +128,7 @@ friendsRouter.post('/dms/:userId', (req, res) => {
   if (!convo) {
     convo = { id: uuidv4(), participants: [me.id, otherId], messages: [] };
     db.data.directMessages.push(convo);
+    recordDbOp('insert', 'directMessages', convo.id, convo);
   }
   const { content } = req.body;
   if (!content?.trim()) return res.status(400).json({ error: 'Content required' });
@@ -139,6 +140,7 @@ friendsRouter.post('/dms/:userId', (req, res) => {
     read: false
   };
   convo.messages.push(msg);
+  recordDbOp('update', 'directMessages', convo.id);
   addXp(me.id, 1);
   flushDatabase();
   const msgWithSender = { ...msg, sender: { id: me.id, username: me.username, avatar: me.avatar } };

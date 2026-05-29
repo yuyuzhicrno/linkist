@@ -1,7 +1,7 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'linkist_dev_secret_2026';
+import { db } from '../data/db.js';
+import { getJwtSecret } from '../config/index.js';
 
 let io = null;
 
@@ -19,8 +19,12 @@ export function initSocket(httpServer) {
       return next(new Error('Authentication required'));
     }
     try {
-      const { userId } = jwt.verify(token, JWT_SECRET);
+      const { userId } = jwt.verify(token, getJwtSecret());
       socket.userId = userId;
+      socket.user = db.data.users.find(u => u.id === userId);
+      if (!socket.user) {
+        return next(new Error('User not found'));
+      }
       next();
     } catch (err) {
       next(new Error('Invalid token'));
@@ -31,6 +35,18 @@ export function initSocket(httpServer) {
     console.log(`User connected: ${socket.userId}`);
 
     socket.on('join:channel', (channelId) => {
+      const channel = db.data.channels.find(c => c.id === channelId);
+      if (!channel) {
+        socket.emit('error', { message: '频道不存在' });
+        return;
+      }
+      if (!channel.isPublic && 
+          !channel.memberIds.includes(socket.userId) && 
+          channel.ownerId !== socket.userId && 
+          socket.user.role !== 'admin') {
+        socket.emit('error', { message: '无权加入此私密频道' });
+        return;
+      }
       socket.join(`channel:${channelId}`);
       console.log(`User ${socket.userId} joined channel ${channelId}`);
     });
@@ -40,6 +56,15 @@ export function initSocket(httpServer) {
     });
 
     socket.on('join:dm', (convoId) => {
+      const convo = db.data.directMessages.find(d => d.id === convoId);
+      if (!convo) {
+        socket.emit('error', { message: '对话不存在' });
+        return;
+      }
+      if (!convo.participants.includes(socket.userId) && socket.user.role !== 'admin') {
+        socket.emit('error', { message: '无权加入此对话' });
+        return;
+      }
       socket.join(`dm:${convoId}`);
     });
 
@@ -48,6 +73,10 @@ export function initSocket(httpServer) {
     });
 
     socket.on('join:user', (userId) => {
+      if (userId !== socket.userId && socket.user.role !== 'admin') {
+        socket.emit('error', { message: '只能加入自己的用户房间' });
+        return;
+      }
       socket.join(`user:${userId}`);
     });
 
