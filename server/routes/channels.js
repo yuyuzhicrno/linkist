@@ -1,18 +1,8 @@
 import { Router } from 'express';
-import jwt from 'jsonwebtoken';
 import { getServices } from '../services-registry.js';
 import { emitToChannel } from '../services/socket.js';
 import { validate, schemas, sanitizeInput } from '../middleware/validation.js';
-import { getJwtSecret } from '../config/index.js';
-
-const getUser = async (req) => {
-  const auth = req.headers.authorization;
-  if (!auth?.startsWith('Bearer ')) return null;
-  try {
-    const { userId } = jwt.verify(auth.slice(7), getJwtSecret());
-    return await getServices().user.getUserById(userId);
-  } catch { return null; }
-};
+import { authenticateWithUser, optionalAuth } from '../middleware/auth.js';
 
 const getAuthor = async (authorId) => {
   const u = await getServices().user.getUserById(authorId);
@@ -22,13 +12,12 @@ const getAuthor = async (authorId) => {
 
 export const channelsRouter = Router();
 
-channelsRouter.get('/', async (req, res) => {
+channelsRouter.get('/', optionalAuth, async (req, res) => {
   try {
-    const user = await getUser(req);
     const channels = await getServices().channel.getChannels();
     
     const filteredChannels = channels.filter(c => 
-      c.isPublic || (user && c.memberIds?.includes(user.id))
+      c.isPublic || (req.user && c.memberIds?.includes(req.user.id))
     );
     
     const enrichedChannels = await Promise.all(filteredChannels.map(async ch => ({
@@ -46,11 +35,10 @@ channelsRouter.get('/', async (req, res) => {
 
 channelsRouter.get('/:id', async (req, res) => {
   try {
-    const ch = await getServices().channel.getChannelById(req.params.id);
+    let ch = await getServices().channel.getChannelById(req.params.id);
     if (!ch) {
-      const chBySlug = await getServices().channel.getChannelBySlug(req.params.id);
-      if (!chBySlug) return res.status(404).json({ error: 'Channel not found' });
-      ch = chBySlug;
+      ch = await getServices().channel.getChannelBySlug(req.params.id);
+      if (!ch) return res.status(404).json({ error: 'Channel not found' });
     }
     
     const messages = await Promise.all((ch.messages || []).map(async m => ({
@@ -65,14 +53,11 @@ channelsRouter.get('/:id', async (req, res) => {
   }
 });
 
-channelsRouter.post('/', validate(schemas.createChannel), async (req, res) => {
+channelsRouter.post('/', validate(schemas.createChannel), authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    
-    const { level } = getServices().user.calcLevel(user.xp || 0);
+    const { level } = getServices().user.calcLevel(req.user.xp || 0);
     const CHANNEL_CREATE_LEVEL = 3;
-    if (level < CHANNEL_CREATE_LEVEL && user.role !== 'admin')
+    if (level < CHANNEL_CREATE_LEVEL && req.user.role !== 'admin')
       return res.status(403).json({ error: `需要达到 ${CHANNEL_CREATE_LEVEL} 级才能创建频道（当前 ${level} 级）` });
     
     const { name, description, icon, color, isPublic } = req.body;
@@ -83,10 +68,10 @@ channelsRouter.post('/', validate(schemas.createChannel), async (req, res) => {
       icon: sanitizeInput(icon) || '💬',
       color: sanitizeInput(color) || '#7c3aed',
       isPublic: isPublic !== false,
-      ownerId: user.id
+      ownerId: req.user.id
     });
     
-    await getServices().user.addXp(user.id, 20);
+    await getServices().user.addXp(req.user.id, 20);
     
     res.json(channel);
   } catch (err) {
@@ -95,12 +80,9 @@ channelsRouter.post('/', validate(schemas.createChannel), async (req, res) => {
   }
 });
 
-channelsRouter.post('/:id/join', async (req, res) => {
+channelsRouter.post('/:id/join', authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    
-    await getServices().channel.joinChannel(req.params.id, user.id);
+    await getServices().channel.joinChannel(req.params.id, req.user.id);
     
     res.json({ success: true });
   } catch (err) {
@@ -109,18 +91,15 @@ channelsRouter.post('/:id/join', async (req, res) => {
   }
 });
 
-channelsRouter.post('/:id/messages', validate(schemas.sendMessage), async (req, res) => {
+channelsRouter.post('/:id/messages', validate(schemas.sendMessage), authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    
     const { content } = req.body;
     const msg = await getServices().channel.sendMessage(req.params.id, {
       content: (sanitizeInput(content) || '').trim(),
-      authorId: user.id
+      authorId: req.user.id
     });
     
-    const msgWithAuthor = { ...msg, author: { id: user.id, username: user.username, avatar: user.avatar } };
+    const msgWithAuthor = { ...msg, author: { id: req.user.id, username: req.user.username, avatar: req.user.avatar } };
     emitToChannel(req.params.id, 'message:new', msgWithAuthor);
     
     res.json(msgWithAuthor);
@@ -130,13 +109,10 @@ channelsRouter.post('/:id/messages', validate(schemas.sendMessage), async (req, 
   }
 });
 
-channelsRouter.post('/:channelId/messages/:msgId/react', async (req, res) => {
+channelsRouter.post('/:channelId/messages/:msgId/react', authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    
     const { emoji } = req.body;
-    const reactions = await getServices().channel.addReaction(req.params.channelId, req.params.msgId, emoji, user.id);
+    const reactions = await getServices().channel.addReaction(req.params.channelId, req.params.msgId, emoji, req.user.id);
     
     emitToChannel(req.params.channelId, 'message:reaction', { messageId: req.params.msgId, reactions });
     
@@ -144,5 +120,81 @@ channelsRouter.post('/:channelId/messages/:msgId/react', async (req, res) => {
   } catch (err) {
     console.error('消息反应错误:', err);
     res.status(500).json({ error: err.message || '反应失败' });
+  }
+});
+
+// 私密频道成员管理
+
+channelsRouter.get('/:id/members', authenticateWithUser, async (req, res) => {
+  try {
+    const channel = await getServices().channel.getChannelById(req.params.id);
+    if (!channel) return res.status(404).json({ error: '频道不存在' });
+    
+    if (!channel.isPublic && !channel.memberIds?.includes(req.user.id) && channel.ownerId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: '无权访问此频道' });
+    }
+    
+    const members = await Promise.all((channel.memberIds || []).map(async id => {
+      const u = await getServices().user.getUserById(id);
+      return u ? { id: u.id, username: u.username, avatar: u.avatar } : null;
+    }));
+    
+    res.json(members.filter(Boolean));
+  } catch (err) {
+    console.error('获取频道成员错误:', err);
+    res.status(500).json({ error: '获取成员失败' });
+  }
+});
+
+channelsRouter.post('/:id/members', authenticateWithUser, async (req, res) => {
+  try {
+    const channel = await getServices().channel.getChannelById(req.params.id);
+    if (!channel) return res.status(404).json({ error: '频道不存在' });
+    
+    if (channel.ownerId !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ error: '只有频道所有者或管理员可以添加成员' });
+    }
+    
+    const { memberId } = req.body;
+    if (!memberId) return res.status(400).json({ error: '缺少成员ID' });
+    
+    const targetUser = await getServices().user.getUserById(memberId);
+    if (!targetUser) return res.status(404).json({ error: '用户不存在' });
+    
+    const memberIds = [...(channel.memberIds || [])];
+    if (memberIds.includes(memberId)) {
+      return res.status(409).json({ error: '该用户已是频道成员' });
+    }
+    
+    memberIds.push(memberId);
+    await getServices().channel.updateChannel(req.params.id, { memberIds });
+    
+    res.json({ success: true, member: { id: targetUser.id, username: targetUser.username, avatar: targetUser.avatar } });
+  } catch (err) {
+    console.error('添加频道成员错误:', err);
+    res.status(500).json({ error: '添加成员失败' });
+  }
+});
+
+channelsRouter.delete('/:id/members/:memberId', authenticateWithUser, async (req, res) => {
+  try {
+    const channel = await getServices().channel.getChannelById(req.params.id);
+    if (!channel) return res.status(404).json({ error: '频道不存在' });
+    
+    if (channel.ownerId !== req.user.id && req.user.role !== 'admin' && req.params.memberId !== req.user.id) {
+      return res.status(403).json({ error: '只有频道所有者、管理员或成员本人可以移除成员' });
+    }
+    
+    if (channel.ownerId === req.params.memberId) {
+      return res.status(403).json({ error: '不能移除频道所有者' });
+    }
+    
+    const memberIds = (channel.memberIds || []).filter(id => id !== req.params.memberId);
+    await getServices().channel.updateChannel(req.params.id, { memberIds });
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('移除频道成员错误:', err);
+    res.status(500).json({ error: '移除成员失败' });
   }
 });

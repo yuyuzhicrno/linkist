@@ -4,6 +4,7 @@ import { api } from '../utils/api.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { ChannelSidebar } from '../components/channels/ChannelSidebar.jsx';
 import { ChatArea } from '../components/channels/ChatArea.jsx';
+import { ChannelMembers } from '../components/channels/ChannelMembers.jsx';
 
 export default function ChannelsPage() {
   const { user } = useAuth();
@@ -51,7 +52,12 @@ export default function ChannelsPage() {
       </div>
 
       {activeChannel ? (
-        <ChatArea channel={activeChannel} user={user} />
+        <div className="flex-1 flex overflow-hidden">
+          <ChatArea channel={activeChannel} user={user} />
+          {!activeChannel.isPublic && (
+            <ChannelMembers channel={activeChannel} user={user} />
+          )}
+        </div>
       ) : (
         <div className="flex-1 flex items-center justify-center text-[var(--text-muted)] flex-col gap-3">
           <div className="text-5xl">💬</div>

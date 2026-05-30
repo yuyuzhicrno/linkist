@@ -279,7 +279,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { services } from '../index.js';
+import { getServices } from '../services-registry.js';
 import { getJwtSecret } from '../config/index.js';
 &nbsp;
 const getUser = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >as</span>ync (req) =&gt; {</span>
@@ -287,7 +287,7 @@ const getUser = <span class="cstat-no" title="statement not covered" ><span clas
 <span class="cstat-no" title="statement not covered" >  if (!auth?.startsWith('Bearer ')) <span class="cstat-no" title="statement not covered" >return null;</span></span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { userId } = <span class="cstat-no" title="statement not covered" >jwt.verify(auth.slice(7), getJwtSecret());</span>
-<span class="cstat-no" title="statement not covered" >    return await services.user.getUserById(userId);</span>
+<span class="cstat-no" title="statement not covered" >    return await getServices().user.getUserById(userId);</span>
   } catch { <span class="cstat-no" title="statement not covered" >return null; </span>}
 };
 &nbsp;
@@ -295,7 +295,7 @@ export const pollsRouter = <span class="cstat-no" title="statement not covered" 
 &nbsp;
 <span class="cstat-no" title="statement not covered" >pollsRouter.get('/:id', <span class="fstat-no" title="function not covered" >as</span>ync (req, res) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
-    const poll = <span class="cstat-no" title="statement not covered" >await services.poll.getPollById(req.params.id);</span>
+    const poll = <span class="cstat-no" title="statement not covered" >await getServices().poll.getPollById(req.params.id);</span>
 <span class="cstat-no" title="statement not covered" >    if (!poll) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Poll not found' });</span></span>
 <span class="cstat-no" title="statement not covered" >    res.json(poll);</span>
   } catch (err) {
@@ -306,7 +306,7 @@ export const pollsRouter = <span class="cstat-no" title="statement not covered" 
 &nbsp;
 <span class="cstat-no" title="statement not covered" >pollsRouter.get('/post/:postId', <span class="fstat-no" title="function not covered" >as</span>ync (req, res) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
-    const polls = <span class="cstat-no" title="statement not covered" >await services.repo.polls();</span>
+    const polls = <span class="cstat-no" title="statement not covered" >await getServices().repo.polls();</span>
     const poll = <span class="cstat-no" title="statement not covered" >polls.find(<span class="fstat-no" title="function not covered" >p </span>=&gt; <span class="cstat-no" title="statement not covered" >p.postId === req.params.postId)</span>;</span>
 <span class="cstat-no" title="statement not covered" >    res.json(poll || null);</span>
   } catch (err) {
@@ -324,7 +324,7 @@ export const pollsRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >    if (!question || !Array.isArray(options) || options.length &lt; 2)</span>
 <span class="cstat-no" title="statement not covered" >      return res.status(400).json({ error: 'Question and at least 2 options required' });</span>
     
-    const poll = <span class="cstat-no" title="statement not covered" >await services.poll.createPoll({</span>
+    const poll = <span class="cstat-no" title="statement not covered" >await getServices().poll.createPoll({</span>
       question,
       options,
       authorId: user.id,
@@ -334,10 +334,10 @@ export const pollsRouter = <span class="cstat-no" title="statement not covered" 
     });
     
 <span class="cstat-no" title="statement not covered" >    if (postId) {</span>
-<span class="cstat-no" title="statement not covered" >      await services.post.updatePost(postId, { pollId: poll.id });</span>
+<span class="cstat-no" title="statement not covered" >      await getServices().post.updatePost(postId, { pollId: poll.id });</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    await services.user.addXp(user.id, 5);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().user.addXp(user.id, 5);</span>
     
 <span class="cstat-no" title="statement not covered" >    res.json(poll);</span>
   } catch (err) {
@@ -355,9 +355,9 @@ export const pollsRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >    if (!Array.isArray(optionIds) || optionIds.length === 0)</span>
 <span class="cstat-no" title="statement not covered" >      return res.status(400).json({ error: 'optionIds required' });</span>
     
-    const poll = <span class="cstat-no" title="statement not covered" >await services.poll.votePoll(req.params.id, user.id, optionIds);</span>
+    const poll = <span class="cstat-no" title="statement not covered" >await getServices().poll.votePoll(req.params.id, user.id, optionIds);</span>
     
-<span class="cstat-no" title="statement not covered" >    await services.user.addXp(user.id, 2);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().user.addXp(user.id, 2);</span>
     
 <span class="cstat-no" title="statement not covered" >    res.json(poll);</span>
   } catch (err) {
@@ -371,13 +371,13 @@ export const pollsRouter = <span class="cstat-no" title="statement not covered" 
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-    const poll = <span class="cstat-no" title="statement not covered" >await services.repo.pollById(req.params.id);</span>
+    const poll = <span class="cstat-no" title="statement not covered" >await getServices().repo.pollById(req.params.id);</span>
 <span class="cstat-no" title="statement not covered" >    if (!poll) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Not found' });</span></span>
     
 <span class="cstat-no" title="statement not covered" >    if (poll.authorId !== user.id &amp;&amp; user.role !== 'admin')</span>
 <span class="cstat-no" title="statement not covered" >      return res.status(403).json({ error: 'Forbidden' });</span>
     
-<span class="cstat-no" title="statement not covered" >    await services.repo.query('DELETE FROM polls WHERE id = $1', [req.params.id]);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().repo.query('DELETE FROM polls WHERE id = $1', [req.params.id]);</span>
     
 <span class="cstat-no" title="statement not covered" >    res.json({ success: true });</span>
   } catch (err) {
@@ -391,7 +391,7 @@ export const pollsRouter = <span class="cstat-no" title="statement not covered" 
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-30T04:44:02.298Z
+                at 2026-05-30T06:34:28.510Z
             </div>
         <script src="../prettify.js"></script>
         <script>

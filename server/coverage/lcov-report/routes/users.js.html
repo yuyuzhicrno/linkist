@@ -25,28 +25,28 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/104</span>
+                <span class='fraction'>0/115</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/60</span>
+                <span class='fraction'>0/62</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/13</span>
+                <span class='fraction'>0/15</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/88</span>
+                <span class='fraction'>0/98</span>
             </div>
         
             
@@ -225,7 +225,25 @@
 <a name='L160'></a><a href='#L160'>160</a>
 <a name='L161'></a><a href='#L161'>161</a>
 <a name='L162'></a><a href='#L162'>162</a>
-<a name='L163'></a><a href='#L163'>163</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -346,6 +364,24 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -392,7 +428,7 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { services } from '../index.js';
+import { getServices } from '../services-registry.js';
 import { getJwtSecret } from '../config/index.js';
 &nbsp;
 const __dirname = <span class="cstat-no" title="statement not covered" >path.dirname(fileURLToPath(import.meta.url));</span>
@@ -422,7 +458,7 @@ const getUser = <span class="cstat-no" title="statement not covered" ><span clas
 <span class="cstat-no" title="statement not covered" >  if (!auth?.startsWith('Bearer ')) <span class="cstat-no" title="statement not covered" >return null;</span></span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { userId } = <span class="cstat-no" title="statement not covered" >jwt.verify(auth.slice(7), getJwtSecret());</span>
-<span class="cstat-no" title="statement not covered" >    return await services.user.getUserById(userId);</span>
+<span class="cstat-no" title="statement not covered" >    return await getServices().user.getUserById(userId);</span>
   } catch { <span class="cstat-no" title="statement not covered" >return null; </span>}
 };
 &nbsp;
@@ -438,7 +474,7 @@ export const usersRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
-<span class="cstat-no" title="statement not covered" >    res.json({ ...safeUser(user), levelInfo: services.user.calcLevel(user.xp || 0) });</span>
+<span class="cstat-no" title="statement not covered" >    res.json({ ...safeUser(user), levelInfo: getServices().user.calcLevel(user.xp || 0) });</span>
   } catch (err) {
 <span class="cstat-no" title="statement not covered" >    console.error('获取用户信息错误:', err);</span>
 <span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: '获取用户信息失败' });</span>
@@ -447,12 +483,12 @@ export const usersRouter = <span class="cstat-no" title="statement not covered" 
 &nbsp;
 <span class="cstat-no" title="statement not covered" >usersRouter.get('/:id', <span class="fstat-no" title="function not covered" >as</span>ync (req, res) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
-    const user = <span class="cstat-no" title="statement not covered" >await services.user.getUserById(req.params.id);</span>
-    const userByUsername = <span class="cstat-no" title="statement not covered" >user || await services.user.getUserByUsername(req.params.id);</span>
+    const user = <span class="cstat-no" title="statement not covered" >await getServices().user.getUserById(req.params.id);</span>
+    const userByUsername = <span class="cstat-no" title="statement not covered" >user || await getServices().user.getUserByUsername(req.params.id);</span>
     
 <span class="cstat-no" title="statement not covered" >    if (!userByUsername) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'User not found' });</span></span>
     
-    const posts = <span class="cstat-no" title="statement not covered" >await services.repo.posts({ authorId: userByUsername.id });</span>
+    const posts = <span class="cstat-no" title="statement not covered" >await getServices().repo.posts({ authorId: userByUsername.id });</span>
     const postStats = <span class="cstat-no" title="statement not covered" >posts.posts.map(<span class="fstat-no" title="function not covered" >p </span>=&gt; (<span class="cstat-no" title="statement not covered" >{</span></span>
       id: p.id, title: p.title, category: p.category,
       voteCount: (p.upvotes?.length || 0) - (p.downvotes?.length || 0),
@@ -461,7 +497,7 @@ export const usersRouter = <span class="cstat-no" title="statement not covered" 
     
 <span class="cstat-no" title="statement not covered" >    res.json({</span>
       ...safeUser(userByUsername),
-      levelInfo: services.user.calcLevel(userByUsername.xp || 0),
+      levelInfo: getServices().user.calcLevel(userByUsername.xp || 0),
       stats: { posts: postStats.length, friends: (userByUsername.friends || []).length },
       posts: postStats
     });
@@ -483,8 +519,8 @@ export const usersRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >    if (accentColor !== undefined) <span class="cstat-no" title="statement not covered" >updates.accentColor = accentColor;</span></span>
 <span class="cstat-no" title="statement not covered" >    if (uiSettings !== undefined) <span class="cstat-no" title="statement not covered" >updates.uiSettings = { ...user.uiSettings, ...uiSettings };</span></span>
     
-    const updated = <span class="cstat-no" title="statement not covered" >await services.user.updateUser(user.id, updates);</span>
-<span class="cstat-no" title="statement not covered" >    res.json({ ...safeUser(updated), levelInfo: services.user.calcLevel(updated.xp || 0) });</span>
+    const updated = <span class="cstat-no" title="statement not covered" >await getServices().user.updateUser(user.id, updates);</span>
+<span class="cstat-no" title="statement not covered" >    res.json({ ...safeUser(updated), levelInfo: getServices().user.calcLevel(updated.xp || 0) });</span>
   } catch (err) {
 <span class="cstat-no" title="statement not covered" >    console.error('更新用户资料错误:', err);</span>
 <span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: '更新用户资料失败' });</span>
@@ -500,15 +536,15 @@ export const usersRouter = <span class="cstat-no" title="statement not covered" 
     const baseUrl = <span class="cstat-no" title="statement not covered" >process.env.BASE_URL || `http://localhost:${process.env.PORT || 3001}`;</span>
     const avatarUrl = <span class="cstat-no" title="statement not covered" >`${baseUrl}/uploads/avatars/${req.file.filename}`;</span>
     
-<span class="cstat-no" title="statement not covered" >    await services.user.updateUser(user.id, { avatar: avatarUrl });</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().user.updateUser(user.id, { avatar: avatarUrl });</span>
     
 <span class="cstat-no" title="statement not covered" >    if (!user._avatarXpGiven) {</span>
-<span class="cstat-no" title="statement not covered" >      await services.user.addXp(user.id, 10);</span>
-<span class="cstat-no" title="statement not covered" >      await services.user.updateUser(user.id, { _avatarXpGiven: true });</span>
+<span class="cstat-no" title="statement not covered" >      await getServices().user.addXp(user.id, 10);</span>
+<span class="cstat-no" title="statement not covered" >      await getServices().user.updateUser(user.id, { _avatarXpGiven: true });</span>
     }
     
-    const updated = <span class="cstat-no" title="statement not covered" >await services.user.getUserById(user.id);</span>
-<span class="cstat-no" title="statement not covered" >    res.json({ ...safeUser(updated), levelInfo: services.user.calcLevel(updated.xp || 0) });</span>
+    const updated = <span class="cstat-no" title="statement not covered" >await getServices().user.getUserById(user.id);</span>
+<span class="cstat-no" title="statement not covered" >    res.json({ ...safeUser(updated), levelInfo: getServices().user.calcLevel(updated.xp || 0) });</span>
   } catch (err) {
 <span class="cstat-no" title="statement not covered" >    console.error('上传头像错误:', err);</span>
 <span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: '上传头像失败' });</span>
@@ -520,9 +556,27 @@ export const usersRouter = <span class="cstat-no" title="statement not covered" 
     const { q } = <span class="cstat-no" title="statement not covered" >req.query;</span>
 <span class="cstat-no" title="statement not covered" >    if (!q) <span class="cstat-no" title="statement not covered" >return res.json([]);</span></span>
     
-    const users = <span class="cstat-no" title="statement not covered" >await services.user.getAllUsers();</span>
+    const users = <span class="cstat-no" title="statement not covered" >await getServices().user.getAllUsers();</span>
     const results = <span class="cstat-no" title="statement not covered" >users</span>
       .filter(<span class="fstat-no" title="function not covered" >u </span>=&gt; <span class="cstat-no" title="statement not covered" >u.username.toLowerCase().includes(q.toLowerCase()))</span>
+      .slice(0, 10)
+      .map(safeUser);
+    
+<span class="cstat-no" title="statement not covered" >    res.json(results);</span>
+  } catch (err) {
+<span class="cstat-no" title="statement not covered" >    console.error('搜索用户错误:', err);</span>
+<span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: '搜索用户失败' });</span>
+  }
+});
+&nbsp;
+<span class="cstat-no" title="statement not covered" >usersRouter.get('/search', <span class="fstat-no" title="function not covered" >as</span>ync (req, res) =&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  try {</span>
+    const { query } = <span class="cstat-no" title="statement not covered" >req.query;</span>
+<span class="cstat-no" title="statement not covered" >    if (!query) <span class="cstat-no" title="statement not covered" >return res.json([]);</span></span>
+    
+    const users = <span class="cstat-no" title="statement not covered" >await getServices().user.getAllUsers();</span>
+    const results = <span class="cstat-no" title="statement not covered" >users</span>
+      .filter(<span class="fstat-no" title="function not covered" >u </span>=&gt; <span class="cstat-no" title="statement not covered" >u.username.toLowerCase().includes(query.toLowerCase()))</span>
       .slice(0, 10)
       .map(safeUser);
     
@@ -539,12 +593,12 @@ export const usersRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >    if (!caller || caller.role !== 'admin') <span class="cstat-no" title="statement not covered" >return res.status(403).json({ error: 'Forbidden' });</span></span>
     
     const { amount } = <span class="cstat-no" title="statement not covered" >req.body;</span>
-<span class="cstat-no" title="statement not covered" >    await services.user.addXp(req.params.id, Number(amount) || 0);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().user.addXp(req.params.id, Number(amount) || 0);</span>
     
-    const user = <span class="cstat-no" title="statement not covered" >await services.user.getUserById(req.params.id);</span>
+    const user = <span class="cstat-no" title="statement not covered" >await getServices().user.getUserById(req.params.id);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Not found' });</span></span>
     
-<span class="cstat-no" title="statement not covered" >    res.json({ xp: user.xp, levelInfo: services.user.calcLevel(user.xp) });</span>
+<span class="cstat-no" title="statement not covered" >    res.json({ xp: user.xp, levelInfo: getServices().user.calcLevel(user.xp) });</span>
   } catch (err) {
 <span class="cstat-no" title="statement not covered" >    console.error('添加经验值错误:', err);</span>
 <span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: '添加经验值失败' });</span>
@@ -556,7 +610,7 @@ export const usersRouter = <span class="cstat-no" title="statement not covered" 
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-30T04:44:02.298Z
+                at 2026-05-30T06:34:28.510Z
             </div>
         <script src="../prettify.js"></script>
         <script>

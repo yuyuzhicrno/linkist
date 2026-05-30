@@ -413,7 +413,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { services } from '../index.js';
+import { getServices } from '../services-registry.js';
 import { emitDmToParticipants } from '../services/socket.js';
 import { getJwtSecret } from '../config/index.js';
 &nbsp;
@@ -422,7 +422,7 @@ const getUser = <span class="cstat-no" title="statement not covered" ><span clas
 <span class="cstat-no" title="statement not covered" >  if (!auth?.startsWith('Bearer ')) <span class="cstat-no" title="statement not covered" >return null;</span></span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { userId } = <span class="cstat-no" title="statement not covered" >jwt.verify(auth.slice(7), getJwtSecret());</span>
-<span class="cstat-no" title="statement not covered" >    return await services.user.getUserById(userId);</span>
+<span class="cstat-no" title="statement not covered" >    return await getServices().user.getUserById(userId);</span>
   } catch { <span class="cstat-no" title="statement not covered" >return null; </span>}
 };
 &nbsp;
@@ -438,8 +438,8 @@ export const friendsRouter = <span class="cstat-no" title="statement not covered
     const me = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!me) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-    const friends = <span class="cstat-no" title="statement not covered" >await services.friend.getFriends(me.id);</span>
-    const requests = <span class="cstat-no" title="statement not covered" >await services.friend.getFriendRequests(me.id);</span>
+    const friends = <span class="cstat-no" title="statement not covered" >await getServices().friend.getFriends(me.id);</span>
+    const requests = <span class="cstat-no" title="statement not covered" >await getServices().friend.getFriendRequests(me.id);</span>
     
 <span class="cstat-no" title="statement not covered" >    res.json({</span>
       friends: friends.map(safeUser).filter(Boolean),
@@ -456,7 +456,7 @@ export const friendsRouter = <span class="cstat-no" title="statement not covered
     const me = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!me) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-<span class="cstat-no" title="statement not covered" >    await services.friend.sendFriendRequest(me.id, req.params.targetId);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().friend.sendFriendRequest(me.id, req.params.targetId);</span>
     
 <span class="cstat-no" title="statement not covered" >    res.json({ success: true });</span>
   } catch (err) {
@@ -470,12 +470,12 @@ export const friendsRouter = <span class="cstat-no" title="statement not covered
     const me = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!me) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-<span class="cstat-no" title="statement not covered" >    await services.friend.acceptFriendRequest(me.id, req.params.requesterId);</span>
-<span class="cstat-no" title="statement not covered" >    await services.user.addXp(me.id, 5);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().friend.acceptFriendRequest(me.id, req.params.requesterId);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().user.addXp(me.id, 5);</span>
     
-    const requester = <span class="cstat-no" title="statement not covered" >await services.user.getUserById(req.params.requesterId);</span>
+    const requester = <span class="cstat-no" title="statement not covered" >await getServices().user.getUserById(req.params.requesterId);</span>
 <span class="cstat-no" title="statement not covered" >    if (requester) {</span>
-<span class="cstat-no" title="statement not covered" >      await services.user.addXp(requester.id, 5);</span>
+<span class="cstat-no" title="statement not covered" >      await getServices().user.addXp(requester.id, 5);</span>
     }
     
 <span class="cstat-no" title="statement not covered" >    res.json({ success: true });</span>
@@ -490,7 +490,7 @@ export const friendsRouter = <span class="cstat-no" title="statement not covered
     const me = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!me) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-<span class="cstat-no" title="statement not covered" >    await services.friend.removeFriend(me.id, req.params.otherId);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().friend.removeFriend(me.id, req.params.otherId);</span>
     
 <span class="cstat-no" title="statement not covered" >    res.json({ success: true });</span>
   } catch (err) {
@@ -504,11 +504,11 @@ export const friendsRouter = <span class="cstat-no" title="statement not covered
     const me = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!me) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-    const dms = <span class="cstat-no" title="statement not covered" >await services.friend.getDirectMessagesForUser(me.id);</span>
+    const dms = <span class="cstat-no" title="statement not covered" >await getServices().friend.getDirectMessagesForUser(me.id);</span>
     
     const convos = <span class="cstat-no" title="statement not covered" >await Promise.all(dms.map(<span class="fstat-no" title="function not covered" >as</span>ync dm =&gt; {</span>
       const otherId = <span class="cstat-no" title="statement not covered" >dm.participants?.find(<span class="fstat-no" title="function not covered" >id</span> =&gt; <span class="cstat-no" title="statement not covered" >id !== me.id)</span>;</span>
-      const other = <span class="cstat-no" title="statement not covered" >otherId ? await services.user.getUserById(otherId) : null;</span>
+      const other = <span class="cstat-no" title="statement not covered" >otherId ? await getServices().user.getUserById(otherId) : null;</span>
       const lastMsg = <span class="cstat-no" title="statement not covered" >dm.messages?.length &gt; 0 ? dm.messages[dm.messages.length - 1] : null;</span>
       const unread = <span class="cstat-no" title="statement not covered" >dm.messages?.filter(<span class="fstat-no" title="function not covered" >m </span>=&gt; <span class="cstat-no" title="statement not covered" >m.senderId !== me.id &amp;&amp; !m.read)</span>?.length || 0;</span>
 <span class="cstat-no" title="statement not covered" >      return { id: dm.id, other: safeUser(other), lastMessage: lastMsg, unread };</span>
@@ -527,17 +527,17 @@ export const friendsRouter = <span class="cstat-no" title="statement not covered
 <span class="cstat-no" title="statement not covered" >    if (!me) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
     const otherId = <span class="cstat-no" title="statement not covered" >req.params.userId;</span>
-    let convo = <span class="cstat-no" title="statement not covered" >await services.friend.getDirectMessage([me.id, otherId]);</span>
+    let convo = <span class="cstat-no" title="statement not covered" >await getServices().friend.getDirectMessage([me.id, otherId]);</span>
     
 <span class="cstat-no" title="statement not covered" >    if (!convo) {</span>
-<span class="cstat-no" title="statement not covered" >      convo = await services.friend.createDirectMessage([me.id, otherId]);</span>
+<span class="cstat-no" title="statement not covered" >      convo = await getServices().friend.createDirectMessage([me.id, otherId]);</span>
     }
     
 <span class="cstat-no" title="statement not covered" >    convo.messages?.forEach(<span class="fstat-no" title="function not covered" >m </span>=&gt; { <span class="cstat-no" title="statement not covered" >if (m.senderId !== me.id) <span class="cstat-no" title="statement not covered" >m.read = true; </span></span>});</span>
     
-    const other = <span class="cstat-no" title="statement not covered" >await services.user.getUserById(otherId);</span>
+    const other = <span class="cstat-no" title="statement not covered" >await getServices().user.getUserById(otherId);</span>
     const messages = <span class="cstat-no" title="statement not covered" >await Promise.all((convo.messages || []).map(<span class="fstat-no" title="function not covered" >as</span>ync m =&gt; {</span>
-      const sender = <span class="cstat-no" title="statement not covered" >await services.user.getUserById(m.senderId);</span>
+      const sender = <span class="cstat-no" title="statement not covered" >await getServices().user.getUserById(m.senderId);</span>
 <span class="cstat-no" title="statement not covered" >      return { ...m, sender: sender ? { id: sender.id, username: sender.username, avatar: sender.avatar } : null };</span>
     }));
     
@@ -558,18 +558,18 @@ export const friendsRouter = <span class="cstat-no" title="statement not covered
     
 <span class="cstat-no" title="statement not covered" >    if (!content?.trim()) <span class="cstat-no" title="statement not covered" >return res.status(400).json({ error: 'Content required' });</span></span>
     
-    let convo = <span class="cstat-no" title="statement not covered" >await services.friend.getDirectMessage([me.id, otherId]);</span>
+    let convo = <span class="cstat-no" title="statement not covered" >await getServices().friend.getDirectMessage([me.id, otherId]);</span>
     
 <span class="cstat-no" title="statement not covered" >    if (!convo) {</span>
-<span class="cstat-no" title="statement not covered" >      convo = await services.friend.createDirectMessage([me.id, otherId]);</span>
+<span class="cstat-no" title="statement not covered" >      convo = await getServices().friend.createDirectMessage([me.id, otherId]);</span>
     }
     
-    const msg = <span class="cstat-no" title="statement not covered" >await services.friend.sendDirectMessage(convo.id, {</span>
+    const msg = <span class="cstat-no" title="statement not covered" >await getServices().friend.sendDirectMessage(convo.id, {</span>
       content: content.trim(),
       authorId: me.id
     });
     
-<span class="cstat-no" title="statement not covered" >    await services.user.addXp(me.id, 1);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().user.addXp(me.id, 1);</span>
     
     const msgWithSender = <span class="cstat-no" title="statement not covered" >{</span>
       ...msg,
@@ -592,7 +592,7 @@ export const friendsRouter = <span class="cstat-no" title="statement not covered
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-30T04:44:02.298Z
+                at 2026-05-30T06:34:28.510Z
             </div>
         <script src="../prettify.js"></script>
         <script>

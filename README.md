@@ -11,9 +11,10 @@
 | 样式方案 | Tailwind CSS 3（深色/浅色模式，8 种主题色） |
 | 动画 | Framer Motion |
 | Markdown | react-markdown + remark-gfm |
-| 后端框架 | Express 4 |
+| 后端框架 | Express 4 + TypeScript |
 | 认证 | JWT（bcryptjs 密码哈希） |
 | 数据库 | 文件存储（LowDB）+ PostgreSQL 支持 |
+| 实时通信 | Socket.IO |
 
 ## 功能特性
 
@@ -91,11 +92,18 @@ linkist/
 │   ├── vite.config.js          # Vite 配置（端口 5173，API 代理）
 │   └── tailwind.config.js
 ├── server/                     # Express 后端
+│   ├── src/                    # TypeScript 源代码
+│   │   ├── services/           # 业务逻辑层（UserService, PostService, ChannelService 等）
+│   │   ├── repository/         # 数据访问层接口
+│   │   ├── types/              # TypeScript 类型定义
+│   │   └── services-registry.ts # 服务注册中心
 │   ├── routes/                 # API 路由（auth, posts, channels, columns, users, friends, polls, tags）
-│   ├── middleware/              # 认证中间件（authenticate, optionalAuth）
+│   ├── middleware/             # 认证中间件（authenticate, authenticateWithUser, optionalAuth）
 │   ├── data/
 │   │   └── db.js               # 内存数据库 + 种子数据
+│   ├── dist/                   # TypeScript 编译输出
 │   ├── index.js                # 服务入口（端口 3001）
+│   ├── tsconfig.json           # TypeScript 配置
 │   └── package.json
 └── README.md
 ```
@@ -179,11 +187,26 @@ linkist/
 | `PORT` | 3001 | 后端端口 |
 | `JWT_SECRET` | `linkist_dev_secret_2026` | JWT 签名密钥 |
 | `CORS_ORIGIN` | `http://localhost:5173` | 允许的跨域来源 |
-| `SMTP_HOST` | `smtp.ethereal.email` | SMTP 服务器地址 |
-| `SMTP_PORT` | 587 | SMTP 服务器端口 |
-| `SMTP_USER` | `ethereal_user@ethereal.email` | SMTP 用户名 |
-| `SMTP_PASS` | `ethereal_pass` | SMTP 密码 |
 | `BASE_URL` | `http://localhost:3001` | 基础 URL |
+
+## 开发命令
+
+```bash
+# 后端
+cd server
+npm install
+npm run build    # 编译 TypeScript
+npm run dev      # 开发模式
+npm test         # 运行测试
+npm run lint     # ESLint 检查
+npm run format   # Prettier 格式化
+
+# 前端
+cd client
+npm install
+npm run dev      # 开发模式
+npm run build    # 生产构建
+```
 
 ## License
 

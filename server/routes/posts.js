@@ -1,17 +1,7 @@
 import { Router } from 'express';
-import jwt from 'jsonwebtoken';
 import { getServices } from '../services-registry.js';
 import { validate, schemas, sanitizeInput } from '../middleware/validation.js';
-import { getJwtSecret } from '../config/index.js';
-
-const getUser = async (req) => {
-  const auth = req.headers.authorization;
-  if (!auth?.startsWith('Bearer ')) return null;
-  try {
-    const { userId } = jwt.verify(auth.slice(7), getJwtSecret());
-    return await getServices().user.getUserById(userId);
-  } catch { return null; }
-};
+import { authenticateWithUser, optionalAuth } from '../middleware/auth.js';
 
 const getAuthor = async (authorId) => {
   const u = await getServices().user.getUserById(authorId);
@@ -84,23 +74,20 @@ postsRouter.get('/:id', async (req, res) => {
   }
 });
 
-postsRouter.post('/', validate(schemas.createPost), async (req, res) => {
+postsRouter.post('/', validate(schemas.createPost), authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    
     const { title, content, category, tags, flair } = req.body;
     
     const post = await getServices().post.createPost({
       title: sanitizeInput(title),
       content: sanitizeInput(content),
-      authorId: user.id,
+      authorId: req.user.id,
       category: sanitizeInput(category) || '综合',
       tags: Array.isArray(tags) ? tags.map(t => sanitizeInput(t)) : [],
       flair: sanitizeInput(flair) || ''
     });
     
-    await getServices().user.addXp(user.id, 10);
+    await getServices().user.addXp(req.user.id, 10);
     
     res.json(await enrichPost(post));
   } catch (err) {
@@ -109,20 +96,17 @@ postsRouter.post('/', validate(schemas.createPost), async (req, res) => {
   }
 });
 
-postsRouter.post('/:id/vote', async (req, res) => {
+postsRouter.post('/:id/vote', authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    
     const { type } = req.body;
-    const post = await getServices().post.vote(req.params.id, user.id, type);
+    const post = await getServices().post.vote(req.params.id, req.user.id, type);
     
     const upvotes = post.upvotes?.length || 0;
     const downvotes = post.downvotes?.length || 0;
     
     if (type === 'up') {
-      await getServices().user.addXp(user.id, 1);
-      await getServices().notification.createPostNotification(req.params.id, post.authorId, user.id, user.username, 'upvote');
+      await getServices().user.addXp(req.user.id, 1);
+      await getServices().notification.createPostNotification(req.params.id, post.authorId, req.user.id, req.user.username, 'upvote');
     }
     
     res.json({ upvotes, downvotes, voteCount: upvotes - downvotes });
@@ -132,21 +116,18 @@ postsRouter.post('/:id/vote', async (req, res) => {
   }
 });
 
-postsRouter.post('/:id/comments', async (req, res) => {
+postsRouter.post('/:id/comments', authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    
     const { content } = req.body;
     if (!content?.trim()) return res.status(400).json({ error: 'Content required' });
     
-    const comment = await getServices().post.addComment(req.params.id, user.id, content.trim());
+    const comment = await getServices().post.addComment(req.params.id, req.user.id, content.trim());
     
-    await getServices().user.addXp(user.id, 3);
+    await getServices().user.addXp(req.user.id, 3);
     
     const post = await getServices().post.getPostById(req.params.id);
-    if (post && post.authorId !== user.id) {
-      await getServices().notification.createPostNotification(req.params.id, post.authorId, user.id, user.username, 'comment');
+    if (post && post.authorId !== req.user.id) {
+      await getServices().notification.createPostNotification(req.params.id, post.authorId, req.user.id, req.user.username, 'comment');
     }
     
     res.json(await enrichComment(comment));
@@ -156,38 +137,32 @@ postsRouter.post('/:id/comments', async (req, res) => {
   }
 });
 
-postsRouter.post('/:id/comments/:commentId/replies', async (req, res) => {
+postsRouter.post('/:id/comments/:commentId/replies', authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
     const { content } = req.body;
     if (!content?.trim()) return res.status(400).json({ error: 'Content required' });
 
-    const reply = await getServices().post.addReply(req.params.commentId, user.id, content.trim());
+    const reply = await getServices().post.addReply(req.params.commentId, req.user.id, content.trim());
 
-    await getServices().user.addXp(user.id, 2);
+    await getServices().user.addXp(req.user.id, 2);
 
     const comments = await getServices().post.getComments(req.params.id);
     const comment = comments.find(c => c.id === req.params.commentId);
-    if (comment && comment.authorId !== user.id) {
-      await getServices().notification.createNotification(comment.authorId, 'reply', '有人回复了你的评论', `${user.username} 回复了你的评论`, { postId: req.params.id, commentId: req.params.commentId });
+    if (comment && comment.authorId !== req.user.id) {
+      await getServices().notification.createNotification(comment.authorId, 'reply', '有人回复了你的评论', `${req.user.username} 回复了你的评论`, { postId: req.params.id, commentId: req.params.commentId });
     }
 
-    res.json({ ...reply, author: { id: user.id, username: user.username, avatar: user.avatar } });
+    res.json({ ...reply, author: { id: req.user.id, username: req.user.username, avatar: req.user.avatar } });
   } catch (err) {
     console.error('回复错误:', err);
     res.status(500).json({ error: '回复失败' });
   }
 });
 
-postsRouter.post('/:id/comments/:commentId/vote', async (req, res) => {
+postsRouter.post('/:id/comments/:commentId/vote', authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-
     const { type } = req.body;
-    const comment = await getServices().post.voteComment(req.params.commentId, user.id);
+    const comment = await getServices().post.voteComment(req.params.commentId, req.user.id);
     if (!comment) return res.status(404).json({ error: 'Comment not found' });
 
     if (type === 'up') {
@@ -201,18 +176,15 @@ postsRouter.post('/:id/comments/:commentId/vote', async (req, res) => {
   }
 });
 
-postsRouter.put('/:id/comments/:commentId', async (req, res) => {
+postsRouter.put('/:id/comments/:commentId', authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    
     const post = await getServices().post.getPostById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
     
     const comment = (post.comments || []).find(c => c.id === req.params.commentId);
     if (!comment) return res.status(404).json({ error: 'Comment not found' });
     
-    if (comment.authorId !== user.id && user.role !== 'admin') {
+    if (comment.authorId !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden' });
     }
     
@@ -229,18 +201,15 @@ postsRouter.put('/:id/comments/:commentId', async (req, res) => {
   }
 });
 
-postsRouter.delete('/:id/comments/:commentId', async (req, res) => {
+postsRouter.delete('/:id/comments/:commentId', authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    
     const post = await getServices().post.getPostById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
     
     const idx = (post.comments || []).findIndex(c => c.id === req.params.commentId);
     if (idx === -1) return res.status(404).json({ error: 'Comment not found' });
     
-    if (post.comments[idx].authorId !== user.id && user.role !== 'admin') {
+    if (post.comments[idx].authorId !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden' });
     }
     
@@ -254,15 +223,12 @@ postsRouter.delete('/:id/comments/:commentId', async (req, res) => {
   }
 });
 
-postsRouter.put('/:id', async (req, res) => {
+postsRouter.put('/:id', authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    
     const post = await getServices().post.getPostById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
     
-    if (post.authorId !== user.id && user.role !== 'admin') {
+    if (post.authorId !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden' });
     }
     
@@ -282,15 +248,12 @@ postsRouter.put('/:id', async (req, res) => {
   }
 });
 
-postsRouter.delete('/:id', async (req, res) => {
+postsRouter.delete('/:id', authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    
     const post = await getServices().post.getPostById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Not found' });
     
-    if (post.authorId !== user.id && user.role !== 'admin') {
+    if (post.authorId !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Forbidden' });
     }
     
@@ -302,12 +265,9 @@ postsRouter.delete('/:id', async (req, res) => {
   }
 });
 
-postsRouter.patch('/:id/pin', async (req, res) => {
+postsRouter.patch('/:id/pin', authenticateWithUser, async (req, res) => {
   try {
-    const user = await getUser(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    
-    const post = await getServices().post.pinPost(req.params.id, user.id);
+    const post = await getServices().post.pinPost(req.params.id, req.user.id);
     res.json({ success: true, isPinned: post.isPinned });
   } catch (err) {
     if (err.message === '没有权限置顶帖子') {

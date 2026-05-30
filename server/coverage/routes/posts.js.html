@@ -701,7 +701,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { services } from '../index.js';
+import { getServices } from '../services-registry.js';
 import { validate, schemas, sanitizeInput } from '../middleware/validation.js';
 import { getJwtSecret } from '../config/index.js';
 &nbsp;
@@ -710,12 +710,12 @@ const getUser = <span class="cstat-no" title="statement not covered" ><span clas
 <span class="cstat-no" title="statement not covered" >  if (!auth?.startsWith('Bearer ')) <span class="cstat-no" title="statement not covered" >return null;</span></span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { userId } = <span class="cstat-no" title="statement not covered" >jwt.verify(auth.slice(7), getJwtSecret());</span>
-<span class="cstat-no" title="statement not covered" >    return await services.user.getUserById(userId);</span>
+<span class="cstat-no" title="statement not covered" >    return await getServices().user.getUserById(userId);</span>
   } catch { <span class="cstat-no" title="statement not covered" >return null; </span>}
 };
 &nbsp;
 const getAuthor = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >as</span>ync (authorId) =&gt; {</span>
-  const u = <span class="cstat-no" title="statement not covered" >await services.user.getUserById(authorId);</span>
+  const u = <span class="cstat-no" title="statement not covered" >await getServices().user.getUserById(authorId);</span>
 <span class="cstat-no" title="statement not covered" >  if (!u) <span class="cstat-no" title="statement not covered" >return null;</span></span>
 <span class="cstat-no" title="statement not covered" >  return { id: u.id, username: u.username, avatar: u.avatar, xp: u.xp || 0 };</span>
 };
@@ -744,7 +744,7 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { sort = <span class="branch-0 cbranch-no" title="branch not covered" >'hot',</span> category, tag, search, page = <span class="branch-0 cbranch-no" title="branch not covered" >1,</span> limit = <span class="branch-0 cbranch-no" title="branch not covered" >20 </span>} = <span class="cstat-no" title="statement not covered" >req.query;</span>
     
-    let postsResult = <span class="cstat-no" title="statement not covered" >await services.post.getPosts({ page, limit });</span>
+    let postsResult = <span class="cstat-no" title="statement not covered" >await getServices().post.getPosts({ page, limit });</span>
     let posts = <span class="cstat-no" title="statement not covered" >postsResult.posts || postsResult;</span>
     
 <span class="cstat-no" title="statement not covered" >    if (Array.isArray(posts)) {</span>
@@ -770,13 +770,13 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
 &nbsp;
 <span class="cstat-no" title="statement not covered" >postsRouter.get('/:id', <span class="fstat-no" title="function not covered" >as</span>ync (req, res) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
-    const post = <span class="cstat-no" title="statement not covered" >await services.post.getPostById(req.params.id);</span>
+    const post = <span class="cstat-no" title="statement not covered" >await getServices().post.getPostById(req.params.id);</span>
 <span class="cstat-no" title="statement not covered" >    if (!post) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Post not found' });</span></span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    await services.post.addView(req.params.id);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().post.addView(req.params.id);</span>
 &nbsp;
     const enriched = <span class="cstat-no" title="statement not covered" >await enrichPost(post);</span>
-<span class="cstat-no" title="statement not covered" >    enriched.comments = await services.post.getComments(req.params.id);</span>
+<span class="cstat-no" title="statement not covered" >    enriched.comments = await getServices().post.getComments(req.params.id);</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    res.json(enriched);</span>
   } catch (err) {
@@ -792,7 +792,7 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
     
     const { title, content, category, tags, flair } = <span class="cstat-no" title="statement not covered" >req.body;</span>
     
-    const post = <span class="cstat-no" title="statement not covered" >await services.post.createPost({</span>
+    const post = <span class="cstat-no" title="statement not covered" >await getServices().post.createPost({</span>
       title: sanitizeInput(title),
       content: sanitizeInput(content),
       authorId: user.id,
@@ -801,7 +801,7 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
       flair: sanitizeInput(flair) || ''
     });
     
-<span class="cstat-no" title="statement not covered" >    await services.user.addXp(user.id, 10);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().user.addXp(user.id, 10);</span>
     
 <span class="cstat-no" title="statement not covered" >    res.json(await enrichPost(post));</span>
   } catch (err) {
@@ -816,14 +816,14 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
     const { type } = <span class="cstat-no" title="statement not covered" >req.body;</span>
-    const post = <span class="cstat-no" title="statement not covered" >await services.post.vote(req.params.id, user.id, type);</span>
+    const post = <span class="cstat-no" title="statement not covered" >await getServices().post.vote(req.params.id, user.id, type);</span>
     
     const upvotes = <span class="cstat-no" title="statement not covered" >post.upvotes?.length || 0;</span>
     const downvotes = <span class="cstat-no" title="statement not covered" >post.downvotes?.length || 0;</span>
     
 <span class="cstat-no" title="statement not covered" >    if (type === 'up') {</span>
-<span class="cstat-no" title="statement not covered" >      await services.user.addXp(user.id, 1);</span>
-<span class="cstat-no" title="statement not covered" >      await services.notification.createPostNotification(req.params.id, post.authorId, user.id, user.username, 'upvote');</span>
+<span class="cstat-no" title="statement not covered" >      await getServices().user.addXp(user.id, 1);</span>
+<span class="cstat-no" title="statement not covered" >      await getServices().notification.createPostNotification(req.params.id, post.authorId, user.id, user.username, 'upvote');</span>
     }
     
 <span class="cstat-no" title="statement not covered" >    res.json({ upvotes, downvotes, voteCount: upvotes - downvotes });</span>
@@ -841,13 +841,13 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
     const { content } = <span class="cstat-no" title="statement not covered" >req.body;</span>
 <span class="cstat-no" title="statement not covered" >    if (!content?.trim()) <span class="cstat-no" title="statement not covered" >return res.status(400).json({ error: 'Content required' });</span></span>
     
-    const comment = <span class="cstat-no" title="statement not covered" >await services.post.addComment(req.params.id, user.id, content.trim());</span>
+    const comment = <span class="cstat-no" title="statement not covered" >await getServices().post.addComment(req.params.id, user.id, content.trim());</span>
     
-<span class="cstat-no" title="statement not covered" >    await services.user.addXp(user.id, 3);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().user.addXp(user.id, 3);</span>
     
-    const post = <span class="cstat-no" title="statement not covered" >await services.post.getPostById(req.params.id);</span>
+    const post = <span class="cstat-no" title="statement not covered" >await getServices().post.getPostById(req.params.id);</span>
 <span class="cstat-no" title="statement not covered" >    if (post &amp;&amp; post.authorId !== user.id) {</span>
-<span class="cstat-no" title="statement not covered" >      await services.notification.createPostNotification(req.params.id, post.authorId, user.id, user.username, 'comment');</span>
+<span class="cstat-no" title="statement not covered" >      await getServices().notification.createPostNotification(req.params.id, post.authorId, user.id, user.username, 'comment');</span>
     }
     
 <span class="cstat-no" title="statement not covered" >    res.json(await enrichComment(comment));</span>
@@ -865,14 +865,14 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
     const { content } = <span class="cstat-no" title="statement not covered" >req.body;</span>
 <span class="cstat-no" title="statement not covered" >    if (!content?.trim()) <span class="cstat-no" title="statement not covered" >return res.status(400).json({ error: 'Content required' });</span></span>
 &nbsp;
-    const reply = <span class="cstat-no" title="statement not covered" >await services.post.addReply(req.params.commentId, user.id, content.trim());</span>
+    const reply = <span class="cstat-no" title="statement not covered" >await getServices().post.addReply(req.params.commentId, user.id, content.trim());</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    await services.user.addXp(user.id, 2);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().user.addXp(user.id, 2);</span>
 &nbsp;
-    const comments = <span class="cstat-no" title="statement not covered" >await services.post.getComments(req.params.id);</span>
+    const comments = <span class="cstat-no" title="statement not covered" >await getServices().post.getComments(req.params.id);</span>
     const comment = <span class="cstat-no" title="statement not covered" >comments.find(<span class="fstat-no" title="function not covered" >c </span>=&gt; <span class="cstat-no" title="statement not covered" >c.id === req.params.commentId)</span>;</span>
 <span class="cstat-no" title="statement not covered" >    if (comment &amp;&amp; comment.authorId !== user.id) {</span>
-<span class="cstat-no" title="statement not covered" >      await services.notification.createNotification(comment.authorId, 'reply', '有人回复了你的评论', `${user.username} 回复了你的评论`, { postId: req.params.id, commentId: req.params.commentId });</span>
+<span class="cstat-no" title="statement not covered" >      await getServices().notification.createNotification(comment.authorId, 'reply', '有人回复了你的评论', `${user.username} 回复了你的评论`, { postId: req.params.id, commentId: req.params.commentId });</span>
     }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    res.json({ ...reply, author: { id: user.id, username: user.username, avatar: user.avatar } });</span>
@@ -888,11 +888,11 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
 &nbsp;
     const { type } = <span class="cstat-no" title="statement not covered" >req.body;</span>
-    const comment = <span class="cstat-no" title="statement not covered" >await services.post.voteComment(req.params.commentId, user.id);</span>
+    const comment = <span class="cstat-no" title="statement not covered" >await getServices().post.voteComment(req.params.commentId, user.id);</span>
 <span class="cstat-no" title="statement not covered" >    if (!comment) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Comment not found' });</span></span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    if (type === 'up') {</span>
-<span class="cstat-no" title="statement not covered" >      await services.user.addXp(comment.authorId, 1);</span>
+<span class="cstat-no" title="statement not covered" >      await getServices().user.addXp(comment.authorId, 1);</span>
     }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    res.json({ upvotes: comment.upvotes?.length || 0, downvotes: comment.downvotes?.length || 0 });</span>
@@ -907,7 +907,7 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-    const post = <span class="cstat-no" title="statement not covered" >await services.post.getPostById(req.params.id);</span>
+    const post = <span class="cstat-no" title="statement not covered" >await getServices().post.getPostById(req.params.id);</span>
 <span class="cstat-no" title="statement not covered" >    if (!post) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Post not found' });</span></span>
     
     const comment = <span class="cstat-no" title="statement not covered" >(post.comments || []).find(<span class="fstat-no" title="function not covered" >c </span>=&gt; <span class="cstat-no" title="statement not covered" >c.id === req.params.commentId)</span>;</span>
@@ -921,7 +921,7 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >    if (content !== undefined) <span class="cstat-no" title="statement not covered" >comment.content = content.trim();</span></span>
 <span class="cstat-no" title="statement not covered" >    comment.updatedAt = new Date().toISOString();</span>
     
-<span class="cstat-no" title="statement not covered" >    await services.post.updatePost(req.params.id, { comments: post.comments });</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().post.updatePost(req.params.id, { comments: post.comments });</span>
     
 <span class="cstat-no" title="statement not covered" >    res.json(await enrichComment(comment));</span>
   } catch (err) {
@@ -935,7 +935,7 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-    const post = <span class="cstat-no" title="statement not covered" >await services.post.getPostById(req.params.id);</span>
+    const post = <span class="cstat-no" title="statement not covered" >await getServices().post.getPostById(req.params.id);</span>
 <span class="cstat-no" title="statement not covered" >    if (!post) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Post not found' });</span></span>
     
     const idx = <span class="cstat-no" title="statement not covered" >(post.comments || []).findIndex(<span class="fstat-no" title="function not covered" >c </span>=&gt; <span class="cstat-no" title="statement not covered" >c.id === req.params.commentId)</span>;</span>
@@ -946,7 +946,7 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
     }
     
 <span class="cstat-no" title="statement not covered" >    post.comments.splice(idx, 1);</span>
-<span class="cstat-no" title="statement not covered" >    await services.post.updatePost(req.params.id, { comments: post.comments });</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().post.updatePost(req.params.id, { comments: post.comments });</span>
     
 <span class="cstat-no" title="statement not covered" >    res.json({ success: true });</span>
   } catch (err) {
@@ -960,7 +960,7 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-    const post = <span class="cstat-no" title="statement not covered" >await services.post.getPostById(req.params.id);</span>
+    const post = <span class="cstat-no" title="statement not covered" >await getServices().post.getPostById(req.params.id);</span>
 <span class="cstat-no" title="statement not covered" >    if (!post) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Post not found' });</span></span>
     
 <span class="cstat-no" title="statement not covered" >    if (post.authorId !== user.id &amp;&amp; user.role !== 'admin') {</span>
@@ -975,7 +975,7 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >    if (tags !== undefined) <span class="cstat-no" title="statement not covered" >updates.tags = Array.isArray(tags) ? tags : post.tags;</span></span>
 <span class="cstat-no" title="statement not covered" >    if (flair !== undefined) <span class="cstat-no" title="statement not covered" >updates.flair = flair;</span></span>
     
-    const updated = <span class="cstat-no" title="statement not covered" >await services.post.updatePost(req.params.id, updates);</span>
+    const updated = <span class="cstat-no" title="statement not covered" >await getServices().post.updatePost(req.params.id, updates);</span>
 <span class="cstat-no" title="statement not covered" >    res.json(await enrichPost(updated));</span>
   } catch (err) {
 <span class="cstat-no" title="statement not covered" >    console.error('更新帖子错误:', err);</span>
@@ -988,14 +988,14 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-    const post = <span class="cstat-no" title="statement not covered" >await services.post.getPostById(req.params.id);</span>
+    const post = <span class="cstat-no" title="statement not covered" >await getServices().post.getPostById(req.params.id);</span>
 <span class="cstat-no" title="statement not covered" >    if (!post) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Not found' });</span></span>
     
 <span class="cstat-no" title="statement not covered" >    if (post.authorId !== user.id &amp;&amp; user.role !== 'admin') {</span>
 <span class="cstat-no" title="statement not covered" >      return res.status(403).json({ error: 'Forbidden' });</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    await services.post.deletePost(req.params.id);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().post.deletePost(req.params.id);</span>
 <span class="cstat-no" title="statement not covered" >    res.json({ success: true });</span>
   } catch (err) {
 <span class="cstat-no" title="statement not covered" >    console.error('删除帖子错误:', err);</span>
@@ -1008,7 +1008,7 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-    const post = <span class="cstat-no" title="statement not covered" >await services.post.pinPost(req.params.id, user.id);</span>
+    const post = <span class="cstat-no" title="statement not covered" >await getServices().post.pinPost(req.params.id, user.id);</span>
 <span class="cstat-no" title="statement not covered" >    res.json({ success: true, isPinned: post.isPinned });</span>
   } catch (err) {
 <span class="cstat-no" title="statement not covered" >    if (err.message === '没有权限置顶帖子') {</span>
@@ -1024,7 +1024,7 @@ export const postsRouter = <span class="cstat-no" title="statement not covered" 
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-30T04:44:02.439Z
+                at 2026-05-30T06:34:28.562Z
             </div>
         <script src="../prettify.js"></script>
         <script>

@@ -219,7 +219,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { services } from '../index.js';
+import { getServices } from '../services-registry.js';
 import { emitToUser } from '../services/socket.js';
 import { getJwtSecret } from '../config/index.js';
 &nbsp;
@@ -228,14 +228,14 @@ const getUser = <span class="cstat-no" title="statement not covered" ><span clas
 <span class="cstat-no" title="statement not covered" >  if (!auth?.startsWith('Bearer ')) <span class="cstat-no" title="statement not covered" >return null;</span></span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { userId } = <span class="cstat-no" title="statement not covered" >jwt.verify(auth.slice(7), getJwtSecret());</span>
-<span class="cstat-no" title="statement not covered" >    return await services.user.getUserById(userId);</span>
+<span class="cstat-no" title="statement not covered" >    return await getServices().user.getUserById(userId);</span>
   } catch { <span class="cstat-no" title="statement not covered" >return null; </span>}
 };
 &nbsp;
 export const notificationsRouter = <span class="cstat-no" title="statement not covered" >Router();</span>
 &nbsp;
 export async function <span class="fstat-no" title="function not covered" >createNotification(</span>userId, type, title, message, data = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
-  const notification = <span class="cstat-no" title="statement not covered" >await services.notification.createNotification(userId, type, title, message, data);</span>
+  const notification = <span class="cstat-no" title="statement not covered" >await getServices().notification.createNotification(userId, type, title, message, data);</span>
 <span class="cstat-no" title="statement not covered" >  emitToUser(userId, 'notification:new', notification);</span>
 <span class="cstat-no" title="statement not covered" >  return notification;</span>
 }
@@ -245,7 +245,7 @@ export async function <span class="fstat-no" title="function not covered" >creat
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
 &nbsp;
-    const notifications = <span class="cstat-no" title="statement not covered" >await services.notification.getNotifications(user.id, { limit: 50 });</span>
+    const notifications = <span class="cstat-no" title="statement not covered" >await getServices().notification.getNotifications(user.id, { limit: 50 });</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    res.json(notifications);</span>
   } catch (err) {
@@ -259,7 +259,7 @@ export async function <span class="fstat-no" title="function not covered" >creat
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
 &nbsp;
-    const notification = <span class="cstat-no" title="statement not covered" >await services.notification.markNotificationRead(req.params.id);</span>
+    const notification = <span class="cstat-no" title="statement not covered" >await getServices().notification.markNotificationRead(req.params.id);</span>
 <span class="cstat-no" title="statement not covered" >    if (!notification) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Notification not found' });</span></span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    res.json({ success: true });</span>
@@ -274,7 +274,7 @@ export async function <span class="fstat-no" title="function not covered" >creat
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    await services.notification.markAllNotificationsRead(user.id);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().notification.markAllNotificationsRead(user.id);</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    res.json({ success: true });</span>
   } catch (err) {
@@ -288,7 +288,7 @@ export async function <span class="fstat-no" title="function not covered" >creat
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    await services.repo.deleteNotification(req.params.id);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().repo.deleteNotification(req.params.id);</span>
 <span class="cstat-no" title="statement not covered" >    res.json({ success: true });</span>
   } catch (err) {
 <span class="cstat-no" title="statement not covered" >    console.error('删除通知错误:', err);</span>
@@ -301,7 +301,7 @@ export async function <span class="fstat-no" title="function not covered" >creat
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-30T04:44:02.439Z
+                at 2026-05-30T06:34:28.562Z
             </div>
         <script src="../prettify.js"></script>
         <script>

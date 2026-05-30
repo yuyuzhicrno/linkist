@@ -470,7 +470,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { services } from '../index.js';
+import { getServices } from '../services-registry.js';
 import { getJwtSecret } from '../config/index.js';
 &nbsp;
 const getUser = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >as</span>ync (req) =&gt; {</span>
@@ -478,7 +478,7 @@ const getUser = <span class="cstat-no" title="statement not covered" ><span clas
 <span class="cstat-no" title="statement not covered" >  if (!auth?.startsWith('Bearer ')) <span class="cstat-no" title="statement not covered" >return null;</span></span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { userId } = <span class="cstat-no" title="statement not covered" >jwt.verify(auth.slice(7), getJwtSecret());</span>
-<span class="cstat-no" title="statement not covered" >    return await services.user.getUserById(userId);</span>
+<span class="cstat-no" title="statement not covered" >    return await getServices().user.getUserById(userId);</span>
   } catch { <span class="cstat-no" title="statement not covered" >return null; </span>}
 };
 &nbsp;
@@ -486,9 +486,9 @@ export const columnsRouter = <span class="cstat-no" title="statement not covered
 &nbsp;
 <span class="cstat-no" title="statement not covered" >columnsRouter.get('/', <span class="fstat-no" title="function not covered" >as</span>ync (req, res) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
-    const columns = <span class="cstat-no" title="statement not covered" >await services.repo.columns();</span>
+    const columns = <span class="cstat-no" title="statement not covered" >await getServices().repo.columns();</span>
     const enriched = <span class="cstat-no" title="statement not covered" >await Promise.all(columns.map(<span class="fstat-no" title="function not covered" >as</span>ync col =&gt; {</span>
-      const author = <span class="cstat-no" title="statement not covered" >await services.user.getUserById(col.authorId);</span>
+      const author = <span class="cstat-no" title="statement not covered" >await getServices().user.getUserById(col.authorId);</span>
 <span class="cstat-no" title="statement not covered" >      return { </span>
         ...col, 
         author: author ? { id: author.id, username: author.username, avatar: author.avatar } : null,
@@ -504,14 +504,14 @@ export const columnsRouter = <span class="cstat-no" title="statement not covered
 &nbsp;
 <span class="cstat-no" title="statement not covered" >columnsRouter.get('/:id', <span class="fstat-no" title="function not covered" >as</span>ync (req, res) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
-    let col = <span class="cstat-no" title="statement not covered" >await services.repo.columnById(req.params.id);</span>
+    let col = <span class="cstat-no" title="statement not covered" >await getServices().repo.columnById(req.params.id);</span>
 <span class="cstat-no" title="statement not covered" >    if (!col) {</span>
-<span class="cstat-no" title="statement not covered" >      col = await services.repo.queryOne('SELECT * FROM columns WHERE slug = $1', [req.params.id]);</span>
+<span class="cstat-no" title="statement not covered" >      col = await getServices().repo.queryOne('SELECT * FROM columns WHERE slug = $1', [req.params.id]);</span>
     }
     
 <span class="cstat-no" title="statement not covered" >    if (!col) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Column not found' });</span></span>
     
-    const author = <span class="cstat-no" title="statement not covered" >await services.user.getUserById(col.authorId);</span>
+    const author = <span class="cstat-no" title="statement not covered" >await getServices().user.getUserById(col.authorId);</span>
 <span class="cstat-no" title="statement not covered" >    res.json({ </span>
       ...col, 
       author: author ? { id: author.id, username: author.username, avatar: author.avatar } : null 
@@ -542,7 +542,7 @@ export const columnsRouter = <span class="cstat-no" title="statement not covered
       createdAt: new Date().toISOString()
     };
     
-<span class="cstat-no" title="statement not covered" >    await services.repo.query(</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().repo.query(</span>
       `INSERT INTO columns (id, title, slug, description, "authorId", "coverColor", followers, articles)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [col.id, col.title, col.slug, col.description, col.authorId, col.coverColor, JSON.stringify([]), JSON.stringify([])]
@@ -557,7 +557,7 @@ export const columnsRouter = <span class="cstat-no" title="statement not covered
 &nbsp;
 <span class="cstat-no" title="statement not covered" >columnsRouter.get('/:colId/articles/:artId', <span class="fstat-no" title="function not covered" >as</span>ync (req, res) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
-    const col = <span class="cstat-no" title="statement not covered" >await services.repo.queryOne('SELECT * FROM columns WHERE id = $1', [req.params.colId]);</span>
+    const col = <span class="cstat-no" title="statement not covered" >await getServices().repo.queryOne('SELECT * FROM columns WHERE id = $1', [req.params.colId]);</span>
 <span class="cstat-no" title="statement not covered" >    if (!col) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Column not found' });</span></span>
     
     const articles = <span class="cstat-no" title="statement not covered" >col.articles || [];</span>
@@ -565,9 +565,9 @@ export const columnsRouter = <span class="cstat-no" title="statement not covered
 <span class="cstat-no" title="statement not covered" >    if (!art) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Article not found' });</span></span>
     
 <span class="cstat-no" title="statement not covered" >    art.views = (art.views || 0) + 1;</span>
-<span class="cstat-no" title="statement not covered" >    await services.repo.query('UPDATE columns SET articles = $1 WHERE id = $2', [JSON.stringify(articles), req.params.colId]);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().repo.query('UPDATE columns SET articles = $1 WHERE id = $2', [JSON.stringify(articles), req.params.colId]);</span>
     
-    const author = <span class="cstat-no" title="statement not covered" >await services.user.getUserById(col.authorId);</span>
+    const author = <span class="cstat-no" title="statement not covered" >await getServices().user.getUserById(col.authorId);</span>
 <span class="cstat-no" title="statement not covered" >    res.json({ </span>
       ...art, 
       column: { 
@@ -587,7 +587,7 @@ export const columnsRouter = <span class="cstat-no" title="statement not covered
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-    const col = <span class="cstat-no" title="statement not covered" >await services.repo.queryOne('SELECT * FROM columns WHERE id = $1', [req.params.id]);</span>
+    const col = <span class="cstat-no" title="statement not covered" >await getServices().repo.queryOne('SELECT * FROM columns WHERE id = $1', [req.params.id]);</span>
 <span class="cstat-no" title="statement not covered" >    if (!col) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Column not found' });</span></span>
 <span class="cstat-no" title="statement not covered" >    if (col.authorId !== user.id) <span class="cstat-no" title="statement not covered" >return res.status(403).json({ error: 'Forbidden' });</span></span>
     
@@ -608,7 +608,7 @@ export const columnsRouter = <span class="cstat-no" title="statement not covered
     };
     
     const articles = <span class="cstat-no" title="statement not covered" >[...(col.articles || []), art];</span>
-<span class="cstat-no" title="statement not covered" >    await services.repo.query('UPDATE columns SET articles = $1 WHERE id = $2', [JSON.stringify(articles), req.params.id]);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().repo.query('UPDATE columns SET articles = $1 WHERE id = $2', [JSON.stringify(articles), req.params.id]);</span>
     
 <span class="cstat-no" title="statement not covered" >    res.json(art);</span>
   } catch (err) {
@@ -622,7 +622,7 @@ export const columnsRouter = <span class="cstat-no" title="statement not covered
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-    const col = <span class="cstat-no" title="statement not covered" >await services.repo.queryOne('SELECT * FROM columns WHERE id = $1', [req.params.colId]);</span>
+    const col = <span class="cstat-no" title="statement not covered" >await getServices().repo.queryOne('SELECT * FROM columns WHERE id = $1', [req.params.colId]);</span>
 <span class="cstat-no" title="statement not covered" >    if (!col) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Column not found' });</span></span>
     
     const articles = <span class="cstat-no" title="statement not covered" >col.articles || [];</span>
@@ -637,7 +637,7 @@ export const columnsRouter = <span class="cstat-no" title="statement not covered
 <span class="cstat-no" title="statement not covered" >      art.likes = (art.likes || []).filter(<span class="fstat-no" title="function not covered" >id</span> =&gt; <span class="cstat-no" title="statement not covered" >id !== user.id)</span>;</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    await services.repo.query('UPDATE columns SET articles = $1 WHERE id = $2', [JSON.stringify(articles), req.params.colId]);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().repo.query('UPDATE columns SET articles = $1 WHERE id = $2', [JSON.stringify(articles), req.params.colId]);</span>
     
 <span class="cstat-no" title="statement not covered" >    res.json({ likes: art.likes.length, liked: likeIdx === -1 });</span>
   } catch (err) {
@@ -651,7 +651,7 @@ export const columnsRouter = <span class="cstat-no" title="statement not covered
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
     
-    const col = <span class="cstat-no" title="statement not covered" >await services.repo.queryOne('SELECT * FROM columns WHERE id = $1', [req.params.id]);</span>
+    const col = <span class="cstat-no" title="statement not covered" >await getServices().repo.queryOne('SELECT * FROM columns WHERE id = $1', [req.params.id]);</span>
 <span class="cstat-no" title="statement not covered" >    if (!col) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Column not found' });</span></span>
     
     const followers = <span class="cstat-no" title="statement not covered" >[...(col.followers || [])];</span>
@@ -662,7 +662,7 @@ export const columnsRouter = <span class="cstat-no" title="statement not covered
 <span class="cstat-no" title="statement not covered" >      followers.splice(idx, 1);</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    await services.repo.query('UPDATE columns SET followers = $1 WHERE id = $2', [JSON.stringify(followers), req.params.id]);</span>
+<span class="cstat-no" title="statement not covered" >    await getServices().repo.query('UPDATE columns SET followers = $1 WHERE id = $2', [JSON.stringify(followers), req.params.id]);</span>
     
 <span class="cstat-no" title="statement not covered" >    res.json({ followed: idx === -1, followers: followers.length });</span>
   } catch (err) {
@@ -676,7 +676,7 @@ export const columnsRouter = <span class="cstat-no" title="statement not covered
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-30T04:44:02.298Z
+                at 2026-05-30T06:34:28.510Z
             </div>
         <script src="../prettify.js"></script>
         <script>

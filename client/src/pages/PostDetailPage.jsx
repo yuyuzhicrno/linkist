@@ -40,6 +40,13 @@ export default function PostDetailPage() {
     setPost(p => ({ ...p, upvotes: Array(data.upvotes).fill(null), downvotes: Array(data.downvotes).fill(null), voteCount: data.upvotes - data.downvotes }));
   };
 
+  const togglePin = async () => {
+    const data = await api.patch(`/posts/${id}/pin`);
+    if (!data.error) {
+      setPost(p => ({ ...p, isPinned: data.isPinned }));
+    }
+  };
+
   const submitComment = async () => {
     if (!comment.trim() || !user) return;
     setSubmitting(true);
@@ -116,6 +123,18 @@ export default function PostDetailPage() {
               </Link>
               <span>{timeAgo(post.createdAt)}</span>
               <span>👁 {post.views}</span>
+              {(user && (user.id === post.authorId || user.role === 'admin')) && (
+                <button
+                  onClick={togglePin}
+                  className={`ml-auto flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+                    post.isPinned 
+                      ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' 
+                      : 'bg-[var(--surface-3)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  📌 {post.isPinned ? '取消置顶' : '置顶'}
+                </button>
+              )}
             </div>
             <div className="prose prose-sm max-w-none">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{post.content}</ReactMarkdown>
