@@ -3,7 +3,8 @@ import jwt from 'jsonwebtoken';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { db, safeUser, addXp, calcLevel, CHANNEL_CREATE_LEVEL, flushDatabase } from '../data/db.js';
+import { getServices } from '../services-registry.js';
+import { getJwtSecret } from '../config/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -27,92 +28,136 @@ const avatarUpload = multer({
   }
 });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'linkist_dev_secret_2026';
-const getUser = (req) => {
+const getUser = async (req) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return null;
-  try { const { userId } = jwt.verify(auth.slice(7), JWT_SECRET); return db.data.users.find(u => u.id === userId) || null; }
-  catch { return null; }
+  try {
+    const { userId } = jwt.verify(auth.slice(7), getJwtSecret());
+    return await getServices().user.getUserById(userId);
+  } catch { return null; }
+};
+
+const safeUser = (user) => {
+  if (!user) return null;
+  const { passwordHash, ...safe } = user;
+  return safe;
 };
 
 export const usersRouter = Router();
 
-// GET current user profile (/me must be before /:id)
-usersRouter.get('/me', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const { passwordHash: _, ...safe } = user;
-  res.json({ ...safe, levelInfo: calcLevel(user.xp || 0) });
+usersRouter.get('/me', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    res.json({ ...safeUser(user), levelInfo: getServices().user.calcLevel(user.xp || 0) });
+  } catch (err) {
+    console.error('获取用户信息错误:', err);
+    res.status(500).json({ error: '获取用户信息失败' });
+  }
 });
 
-// GET user profile by id or username
-usersRouter.get('/:id', (req, res) => {
-  const user = db.data.users.find(u => u.id === req.params.id || u.username === req.params.id);
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  const safe = safeUser(user);
-  const posts = db.data.posts.filter(p => p.authorId === user.id).map(p => ({
-    id: p.id, title: p.title, category: p.category,
-    voteCount: p.upvotes.length - p.downvotes.length,
-    commentCount: p.comments.length, createdAt: p.createdAt
-  }));
-  const columns = db.data.columns.filter(c => c.authorId === user.id).map(c => ({
-    id: c.id, title: c.title, articleCount: c.articles.length, followers: c.followers.length
-  }));
-  res.json({
-    ...safe,
-    levelInfo: calcLevel(user.xp || 0),
-    canCreateChannel: calcLevel(user.xp || 0).level >= CHANNEL_CREATE_LEVEL,
-    stats: { posts: posts.length, columns: columns.length, friends: (user.friends || []).length },
-    posts,
-    columns
-  });
+usersRouter.get('/:id', async (req, res) => {
+  try {
+    const user = await getServices().user.getUserById(req.params.id);
+    const userByUsername = user || await getServices().user.getUserByUsername(req.params.id);
+    
+    if (!userByUsername) return res.status(404).json({ error: 'User not found' });
+    
+    const posts = await getServices().repo.posts({ authorId: userByUsername.id });
+    const postStats = posts.posts.map(p => ({
+      id: p.id, title: p.title, category: p.category,
+      voteCount: (p.upvotes?.length || 0) - (p.downvotes?.length || 0),
+      commentCount: (p.comments?.length || 0), createdAt: p.createdAt
+    }));
+    
+    res.json({
+      ...safeUser(userByUsername),
+      levelInfo: getServices().user.calcLevel(userByUsername.xp || 0),
+      stats: { posts: postStats.length, friends: (userByUsername.friends || []).length },
+      posts: postStats
+    });
+  } catch (err) {
+    console.error('获取用户资料错误:', err);
+    res.status(500).json({ error: '获取用户资料失败' });
+  }
 });
 
-// PUT update profile (bio, accentColor, theme, uiSettings)
-usersRouter.put('/me', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const { bio, theme, accentColor, uiSettings } = req.body;
-  if (bio !== undefined) user.bio = bio;
-  if (theme !== undefined) user.theme = theme;
-  if (accentColor !== undefined) user.accentColor = accentColor;
-  if (uiSettings !== undefined) user.uiSettings = { ...user.uiSettings, ...uiSettings };
-  const { passwordHash: _, ...safe } = user;
-  res.json({ ...safe, levelInfo: calcLevel(user.xp || 0) });
+usersRouter.put('/me', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const { bio, theme, accentColor, uiSettings } = req.body;
+    const updates = {};
+    if (bio !== undefined) updates.bio = bio;
+    if (theme !== undefined) updates.theme = theme;
+    if (accentColor !== undefined) updates.accentColor = accentColor;
+    if (uiSettings !== undefined) updates.uiSettings = { ...user.uiSettings, ...uiSettings };
+    
+    const updated = await getServices().user.updateUser(user.id, updates);
+    res.json({ ...safeUser(updated), levelInfo: getServices().user.calcLevel(updated.xp || 0) });
+  } catch (err) {
+    console.error('更新用户资料错误:', err);
+    res.status(500).json({ error: '更新用户资料失败' });
+  }
 });
 
-// POST upload avatar (file upload)
-usersRouter.post('/me/avatar', avatarUpload.single('avatar'), (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+usersRouter.post('/me/avatar', avatarUpload.single('avatar'), async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-  const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3001}`;
-  user.avatar = `${baseUrl}/uploads/avatars/${req.file.filename}`;
-  if (!user._avatarXpGiven) { addXp(user.id, 10); user._avatarXpGiven = true; }
-  flushDatabase();
-  const { passwordHash: _, ...safe } = user;
-  res.json({ ...safe, levelInfo: calcLevel(user.xp || 0) });
+    const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3001}`;
+    const avatarUrl = `${baseUrl}/uploads/avatars/${req.file.filename}`;
+    
+    await getServices().user.updateUser(user.id, { avatar: avatarUrl });
+    
+    if (!user._avatarXpGiven) {
+      await getServices().user.addXp(user.id, 10);
+      await getServices().user.updateUser(user.id, { _avatarXpGiven: true });
+    }
+    
+    const updated = await getServices().user.getUserById(user.id);
+    res.json({ ...safeUser(updated), levelInfo: getServices().user.calcLevel(updated.xp || 0) });
+  } catch (err) {
+    console.error('上传头像错误:', err);
+    res.status(500).json({ error: '上传头像失败' });
+  }
 });
 
-// GET search users
-usersRouter.get('/', (req, res) => {
-  const { q } = req.query;
-  if (!q) return res.json([]);
-  const results = db.data.users
-    .filter(u => u.username.toLowerCase().includes(q.toLowerCase()))
-    .slice(0, 10)
-    .map(u => safeUser(u));
-  res.json(results);
+usersRouter.get('/', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.json([]);
+    
+    const users = await getServices().user.getAllUsers();
+    const results = users
+      .filter(u => u.username.toLowerCase().includes(q.toLowerCase()))
+      .slice(0, 10)
+      .map(safeUser);
+    
+    res.json(results);
+  } catch (err) {
+    console.error('搜索用户错误:', err);
+    res.status(500).json({ error: '搜索用户失败' });
+  }
 });
 
-// POST add XP (admin only or internal calls)
-usersRouter.post('/:id/xp', (req, res) => {
-  const caller = getUser(req);
-  if (!caller || caller.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
-  const { amount } = req.body;
-  addXp(req.params.id, Number(amount) || 0);
-  const user = db.data.users.find(u => u.id === req.params.id);
-  if (!user) return res.status(404).json({ error: 'Not found' });
-  res.json({ xp: user.xp, levelInfo: calcLevel(user.xp) });
+usersRouter.post('/:id/xp', async (req, res) => {
+  try {
+    const caller = await getUser(req);
+    if (!caller || caller.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+    
+    const { amount } = req.body;
+    await getServices().user.addXp(req.params.id, Number(amount) || 0);
+    
+    const user = await getServices().user.getUserById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'Not found' });
+    
+    res.json({ xp: user.xp, levelInfo: getServices().user.calcLevel(user.xp) });
+  } catch (err) {
+    console.error('添加经验值错误:', err);
+    res.status(500).json({ error: '添加经验值失败' });
+  }
 });

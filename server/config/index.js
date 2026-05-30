@@ -47,7 +47,8 @@ export function validateConfig() {
   if (errors.length > 0) {
     console.error('❌ 配置验证失败:');
     errors.forEach(e => console.error(`   - ${e}`));
-    throw new Error('配置验证失败，请检查环境变量');
+    const errorMsg = errors.length === 1 ? errors[0] : `配置验证失败: ${errors.join('; ')}`;
+    throw new Error(errorMsg);
   }
 
   if (warnings.length > 0) {

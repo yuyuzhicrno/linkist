@@ -1,261 +1,319 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
-import { db, addXp, syncTagCount, saveDatabase, flushDatabase, recordDbOp } from '../data/db.js';
-import { createNotification } from './notifications.js';
+import { getServices } from '../services-registry.js';
 import { validate, schemas, sanitizeInput } from '../middleware/validation.js';
 import { getJwtSecret } from '../config/index.js';
 
-const getUser = (req) => {
+const getUser = async (req) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return null;
-  try { const { userId } = jwt.verify(auth.slice(7), getJwtSecret()); return db.data.users.find(u => u.id === userId) || null; }
-  catch { return null; }
+  try {
+    const { userId } = jwt.verify(auth.slice(7), getJwtSecret());
+    return await getServices().user.getUserById(userId);
+  } catch { return null; }
 };
 
-const getAuthor = (authorId) => {
-  const u = db.data.users.find(u => u.id === authorId);
+const getAuthor = async (authorId) => {
+  const u = await getServices().user.getUserById(authorId);
   if (!u) return null;
   return { id: u.id, username: u.username, avatar: u.avatar, xp: u.xp || 0 };
 };
 
-const enrichPost = (post) => ({
+const enrichPost = async (post) => ({
   ...post,
-  author: getAuthor(post.authorId),
-  voteCount: post.upvotes.length - post.downvotes.length,
-  commentCount: post.comments.length
+  author: await getAuthor(post.authorId),
+  voteCount: (post.upvotes?.length || 0) - (post.downvotes?.length || 0),
+  commentCount: (post.comments?.length || 0)
 });
 
-const enrichComment = (c) => ({
+const enrichComment = async (c) => ({
   ...c,
-  author: getAuthor(c.authorId),
-  voteCount: (c.upvotes || []).length - (c.downvotes || []).length,
-  replies: (c.replies || []).map(r => ({
+  author: await getAuthor(c.authorId),
+  voteCount: ((c.upvotes || []).length || 0) - ((c.downvotes || []).length || 0),
+  replies: await Promise.all((c.replies || []).map(async r => ({
     ...r,
-    author: getAuthor(r.authorId),
-    voteCount: (r.upvotes || []).length - (r.downvotes || []).length
-  }))
+    author: await getAuthor(r.authorId),
+    voteCount: ((r.upvotes || []).length || 0) - ((r.downvotes || []).length || 0)
+  })))
 });
 
 export const postsRouter = Router();
 
-// GET all posts with filters
-postsRouter.get('/', (req, res) => {
-  const { sort = 'hot', category, tag, search } = req.query;
-  let posts = [...db.data.posts];
-  if (category) posts = posts.filter(p => p.category === category);
-  if (tag) posts = posts.filter(p => p.tags.includes(tag));
-  if (search) {
-    const q = search.toLowerCase();
-    posts = posts.filter(p => p.title.toLowerCase().includes(q) || p.content.toLowerCase().includes(q));
+postsRouter.get('/', async (req, res) => {
+  try {
+    const { sort = 'hot', category, tag, search, page = 1, limit = 20 } = req.query;
+    
+    let postsResult = await getServices().post.getPosts({ page, limit });
+    let posts = postsResult.posts || postsResult;
+    
+    if (Array.isArray(posts)) {
+      if (category) posts = posts.filter(p => p.category === category);
+      if (tag) posts = posts.filter(p => (p.tags || []).includes(tag));
+      if (search) {
+        const q = search.toLowerCase();
+        posts = posts.filter(p => p.title.toLowerCase().includes(q) || p.content.toLowerCase().includes(q));
+      }
+      
+      if (sort === 'hot') posts.sort((a, b) => ((b.upvotes?.length || 0) - (b.downvotes?.length || 0)) - ((a.upvotes?.length || 0) - (a.downvotes?.length || 0)));
+      else if (sort === 'new') posts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      else if (sort === 'top') posts.sort((a, b) => (b.upvotes?.length || 0) - (a.upvotes?.length || 0));
+    }
+    
+    const enrichedPosts = await Promise.all(posts.map(enrichPost));
+    res.json(enrichedPosts);
+  } catch (err) {
+    console.error('获取帖子错误:', err);
+    res.status(500).json({ error: '获取帖子失败' });
   }
-  if (sort === 'hot') posts.sort((a, b) => (b.upvotes.length - b.downvotes.length) - (a.upvotes.length - a.downvotes.length));
-  else if (sort === 'new') posts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  else if (sort === 'top') posts.sort((a, b) => b.upvotes.length - a.upvotes.length);
-  res.json(posts.map(enrichPost));
 });
 
-// GET single post
-postsRouter.get('/:id', (req, res) => {
-  const post = db.data.posts.find(p => p.id === req.params.id);
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-  post.views++;
-  flushDatabase();
-  const enriched = enrichPost(post);
-  enriched.comments = post.comments.map(enrichComment);
-  if (post.pollId) enriched.poll = db.data.polls.find(p => p.id === post.pollId) || null;
-  res.json(enriched);
+postsRouter.get('/:id', async (req, res) => {
+  try {
+    const post = await getServices().post.getPostById(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+
+    await getServices().post.addView(req.params.id);
+
+    const enriched = await enrichPost(post);
+    enriched.comments = await getServices().post.getComments(req.params.id);
+
+    res.json(enriched);
+  } catch (err) {
+    console.error('获取帖子详情错误:', err);
+    res.status(500).json({ error: '获取帖子详情失败' });
+  }
 });
 
-// POST create post
-postsRouter.post('/', validate(schemas.createPost), (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const { title, content, category, tags, flair } = req.body;
-  const post = {
-    id: uuidv4(), 
-    title: sanitizeInput(title), 
-    content: sanitizeInput(content),
-    authorId: user.id,
-    category: sanitizeInput(category) || '综合',
-    tags: Array.isArray(tags) ? tags.map(t => sanitizeInput(t)) : [],
-    flair: sanitizeInput(flair) || '',
-    upvotes: [], downvotes: [],
-    views: 0,
-    comments: [],
-    createdAt: new Date().toISOString(),
-    isPinned: false,
-    pollId: null
-  };
-  db.data.posts.push(post);
-  recordDbOp('insert', 'posts', post.id, post);
-  addXp(user.id, 10);
-  post.tags.forEach(t => syncTagCount(t));
-  flushDatabase();
-  res.json(enrichPost(post));
+postsRouter.post('/', validate(schemas.createPost), async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const { title, content, category, tags, flair } = req.body;
+    
+    const post = await getServices().post.createPost({
+      title: sanitizeInput(title),
+      content: sanitizeInput(content),
+      authorId: user.id,
+      category: sanitizeInput(category) || '综合',
+      tags: Array.isArray(tags) ? tags.map(t => sanitizeInput(t)) : [],
+      flair: sanitizeInput(flair) || ''
+    });
+    
+    await getServices().user.addXp(user.id, 10);
+    
+    res.json(await enrichPost(post));
+  } catch (err) {
+    console.error('创建帖子错误:', err);
+    res.status(500).json({ error: '创建帖子失败' });
+  }
 });
 
-// POST vote on post
-postsRouter.post('/:id/vote', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const post = db.data.posts.find(p => p.id === req.params.id);
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-  const { type } = req.body; // 'up' | 'down' | 'none'
-  const wasUp = post.upvotes.includes(user.id);
-  const wasDown = post.downvotes.includes(user.id);
-  post.upvotes = post.upvotes.filter(id => id !== user.id);
-  post.downvotes = post.downvotes.filter(id => id !== user.id);
-  if (type === 'up' && !wasUp) { post.upvotes.push(user.id); addXp(user.id, 1); addXp(post.authorId, 2); if (post.authorId !== user.id) createNotification(post.authorId, 'upvote', '有人赞了你的帖子', `用户 ${user.username} 赞了你的帖子「${post.title}」`, { postId: post.id }); }
-  else if (type === 'down' && !wasDown) { post.downvotes.push(user.id); }
-  recordDbOp('update', 'posts', post.id);
-  flushDatabase();
-  res.json({ upvotes: post.upvotes.length, downvotes: post.downvotes.length, voteCount: post.upvotes.length - post.downvotes.length });
+postsRouter.post('/:id/vote', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const { type } = req.body;
+    const post = await getServices().post.vote(req.params.id, user.id, type);
+    
+    const upvotes = post.upvotes?.length || 0;
+    const downvotes = post.downvotes?.length || 0;
+    
+    if (type === 'up') {
+      await getServices().user.addXp(user.id, 1);
+      await getServices().notification.createPostNotification(req.params.id, post.authorId, user.id, user.username, 'upvote');
+    }
+    
+    res.json({ upvotes, downvotes, voteCount: upvotes - downvotes });
+  } catch (err) {
+    console.error('投票错误:', err);
+    res.status(500).json({ error: '投票失败' });
+  }
 });
 
-// POST comment on post
-postsRouter.post('/:id/comments', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const post = db.data.posts.find(p => p.id === req.params.id);
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-  const { content } = req.body;
-  if (!content?.trim()) return res.status(400).json({ error: 'Content required' });
-  const comment = {
-    id: uuidv4(), authorId: user.id,
-    content: content.trim(),
-    upvotes: [], downvotes: [],
-    replies: [],
-    createdAt: new Date().toISOString()
-  };
-  post.comments.push(comment);
-  recordDbOp('update', 'posts', post.id);
-  addXp(user.id, 3);
-  addXp(post.authorId, 1);
-  if (post.authorId !== user.id) createNotification(post.authorId, 'comment', '有人评论了你的帖子', `用户 ${user.username} 评论了你的帖子「${post.title}」`, { postId: post.id, commentId: comment.id });
-  flushDatabase();
-  res.json(enrichComment(comment));
+postsRouter.post('/:id/comments', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const { content } = req.body;
+    if (!content?.trim()) return res.status(400).json({ error: 'Content required' });
+    
+    const comment = await getServices().post.addComment(req.params.id, user.id, content.trim());
+    
+    await getServices().user.addXp(user.id, 3);
+    
+    const post = await getServices().post.getPostById(req.params.id);
+    if (post && post.authorId !== user.id) {
+      await getServices().notification.createPostNotification(req.params.id, post.authorId, user.id, user.username, 'comment');
+    }
+    
+    res.json(await enrichComment(comment));
+  } catch (err) {
+    console.error('评论错误:', err);
+    res.status(500).json({ error: '评论失败' });
+  }
 });
 
-// POST reply to a comment
-postsRouter.post('/:id/comments/:commentId/replies', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const post = db.data.posts.find(p => p.id === req.params.id);
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-  const comment = post.comments.find(c => c.id === req.params.commentId);
-  if (!comment) return res.status(404).json({ error: 'Comment not found' });
-  const { content } = req.body;
-  if (!content?.trim()) return res.status(400).json({ error: 'Content required' });
-  const reply = {
-    id: uuidv4(), authorId: user.id,
-    content: content.trim(),
-    upvotes: [], downvotes: [],
-    createdAt: new Date().toISOString()
-  };
-  comment.replies = comment.replies || [];
-  comment.replies.push(reply);
-  addXp(user.id, 2);
-  if (comment.authorId !== user.id) createNotification(comment.authorId, 'reply', '有人回复了你的评论', `用户 ${user.username} 回复了你的评论`, { postId: post.id, commentId: comment.id, replyId: reply.id });
-  flushDatabase();
-  res.json({ ...reply, author: { id: user.id, username: user.username, avatar: user.avatar } });
+postsRouter.post('/:id/comments/:commentId/replies', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { content } = req.body;
+    if (!content?.trim()) return res.status(400).json({ error: 'Content required' });
+
+    const reply = await getServices().post.addReply(req.params.commentId, user.id, content.trim());
+
+    await getServices().user.addXp(user.id, 2);
+
+    const comments = await getServices().post.getComments(req.params.id);
+    const comment = comments.find(c => c.id === req.params.commentId);
+    if (comment && comment.authorId !== user.id) {
+      await getServices().notification.createNotification(comment.authorId, 'reply', '有人回复了你的评论', `${user.username} 回复了你的评论`, { postId: req.params.id, commentId: req.params.commentId });
+    }
+
+    res.json({ ...reply, author: { id: user.id, username: user.username, avatar: user.avatar } });
+  } catch (err) {
+    console.error('回复错误:', err);
+    res.status(500).json({ error: '回复失败' });
+  }
 });
 
-// POST vote on comment
-postsRouter.post('/:id/comments/:commentId/vote', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const post = db.data.posts.find(p => p.id === req.params.id);
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-  const comment = post.comments.find(c => c.id === req.params.commentId);
-  if (!comment) return res.status(404).json({ error: 'Comment not found' });
-  const { type } = req.body;
-  comment.upvotes = (comment.upvotes || []).filter(id => id !== user.id);
-  comment.downvotes = (comment.downvotes || []).filter(id => id !== user.id);
-  if (type === 'up') { comment.upvotes.push(user.id); addXp(comment.authorId, 1); }
-  else if (type === 'down') comment.downvotes.push(user.id);
-  flushDatabase();
-  res.json({ upvotes: comment.upvotes.length, downvotes: comment.downvotes.length });
+postsRouter.post('/:id/comments/:commentId/vote', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { type } = req.body;
+    const comment = await getServices().post.voteComment(req.params.commentId, user.id);
+    if (!comment) return res.status(404).json({ error: 'Comment not found' });
+
+    if (type === 'up') {
+      await getServices().user.addXp(comment.authorId, 1);
+    }
+
+    res.json({ upvotes: comment.upvotes?.length || 0, downvotes: comment.downvotes?.length || 0 });
+  } catch (err) {
+    console.error('评论投票错误:', err);
+    res.status(500).json({ error: '投票失败' });
+  }
 });
 
-// PUT update comment
-postsRouter.put('/:id/comments/:commentId', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const post = db.data.posts.find(p => p.id === req.params.id);
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-  const comment = post.comments.find(c => c.id === req.params.commentId);
-  if (!comment) return res.status(404).json({ error: 'Comment not found' });
-  if (comment.authorId !== user.id && user.role !== 'admin')
-    return res.status(403).json({ error: 'Forbidden' });
-  const { content } = req.body;
-  if (content !== undefined) comment.content = content.trim();
-  comment.updatedAt = new Date().toISOString();
-  flushDatabase();
-  res.json(enrichComment(comment));
+postsRouter.put('/:id/comments/:commentId', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const post = await getServices().post.getPostById(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    
+    const comment = (post.comments || []).find(c => c.id === req.params.commentId);
+    if (!comment) return res.status(404).json({ error: 'Comment not found' });
+    
+    if (comment.authorId !== user.id && user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    
+    const { content } = req.body;
+    if (content !== undefined) comment.content = content.trim();
+    comment.updatedAt = new Date().toISOString();
+    
+    await getServices().post.updatePost(req.params.id, { comments: post.comments });
+    
+    res.json(await enrichComment(comment));
+  } catch (err) {
+    console.error('更新评论错误:', err);
+    res.status(500).json({ error: '更新评论失败' });
+  }
 });
 
-// DELETE comment
-postsRouter.delete('/:id/comments/:commentId', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const post = db.data.posts.find(p => p.id === req.params.id);
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-  const idx = post.comments.findIndex(c => c.id === req.params.commentId);
-  if (idx === -1) return res.status(404).json({ error: 'Comment not found' });
-  if (post.comments[idx].authorId !== user.id && user.role !== 'admin')
-    return res.status(403).json({ error: 'Forbidden' });
-  post.comments.splice(idx, 1);
-  flushDatabase();
-  res.json({ success: true });
+postsRouter.delete('/:id/comments/:commentId', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const post = await getServices().post.getPostById(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    
+    const idx = (post.comments || []).findIndex(c => c.id === req.params.commentId);
+    if (idx === -1) return res.status(404).json({ error: 'Comment not found' });
+    
+    if (post.comments[idx].authorId !== user.id && user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    
+    post.comments.splice(idx, 1);
+    await getServices().post.updatePost(req.params.id, { comments: post.comments });
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('删除评论错误:', err);
+    res.status(500).json({ error: '删除评论失败' });
+  }
 });
 
-// PUT update post
-postsRouter.put('/:id', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const post = db.data.posts.find(p => p.id === req.params.id);
-  if (!post) return res.status(404).json({ error: 'Post not found' });
-  if (post.authorId !== user.id && user.role !== 'admin')
-    return res.status(403).json({ error: 'Forbidden' });
-  const { title, content, category, tags, flair } = req.body;
-  if (title !== undefined) post.title = title;
-  if (content !== undefined) post.content = content;
-  if (category !== undefined) post.category = category;
-  if (tags !== undefined) post.tags = Array.isArray(tags) ? tags : post.tags;
-  if (flair !== undefined) post.flair = flair;
-  post.updatedAt = new Date().toISOString();
-  flushDatabase();
-  res.json(enrichPost(post));
+postsRouter.put('/:id', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const post = await getServices().post.getPostById(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    
+    if (post.authorId !== user.id && user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    
+    const { title, content, category, tags, flair } = req.body;
+    const updates = {};
+    if (title !== undefined) updates.title = title;
+    if (content !== undefined) updates.content = content;
+    if (category !== undefined) updates.category = category;
+    if (tags !== undefined) updates.tags = Array.isArray(tags) ? tags : post.tags;
+    if (flair !== undefined) updates.flair = flair;
+    
+    const updated = await getServices().post.updatePost(req.params.id, updates);
+    res.json(await enrichPost(updated));
+  } catch (err) {
+    console.error('更新帖子错误:', err);
+    res.status(500).json({ error: '更新帖子失败' });
+  }
 });
 
-// DELETE post
-postsRouter.delete('/:id', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const idx = db.data.posts.findIndex(p => p.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Not found' });
-  if (db.data.posts[idx].authorId !== user.id && user.role !== 'admin')
-    return res.status(403).json({ error: 'Forbidden' });
-  db.data.posts.splice(idx, 1);
-  recordDbOp('delete', 'posts', req.params.id);
-  flushDatabase();
-  res.json({ success: true });
+postsRouter.delete('/:id', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const post = await getServices().post.getPostById(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Not found' });
+    
+    if (post.authorId !== user.id && user.role !== 'admin') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    
+    await getServices().post.deletePost(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('删除帖子错误:', err);
+    res.status(500).json({ error: '删除帖子失败' });
+  }
 });
 
-// PATCH pin/unpin post
-postsRouter.patch('/:id/pin', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const idx = db.data.posts.findIndex(p => p.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Not found' });
-  const post = db.data.posts[idx];
-  if (post.authorId !== user.id && user.role !== 'admin')
-    return res.status(403).json({ error: '只有帖子作者或管理员可以置顶帖子' });
-
-  const isPinned = req.body.isPinned !== undefined ? req.body.isPinned : !post.isPinned;
-  post.isPinned = isPinned;
-  recordDbOp('update', 'posts', post.id);
-  flushDatabase();
-  res.json({ success: true, isPinned: post.isPinned });
+postsRouter.patch('/:id/pin', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const post = await getServices().post.pinPost(req.params.id, user.id);
+    res.json({ success: true, isPinned: post.isPinned });
+  } catch (err) {
+    if (err.message === '没有权限置顶帖子') {
+      return res.status(403).json({ error: err.message });
+    }
+    console.error('置顶帖子错误:', err);
+    res.status(500).json({ error: '置顶失败' });
+  }
 });

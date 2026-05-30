@@ -1,7 +1,13 @@
 export default {
   testEnvironment: 'node',
   moduleFileExtensions: ['js', 'mjs'],
-  transform: {},
+  transform: {
+    '^.+\\.[jt]sx?$': 'babel-jest'
+  },
+  moduleNameMapper: {
+    '^lowdb$': '<rootDir>/__tests__/__mocks__/lowdb.js',
+    '^lowdb/node$': '<rootDir>/__tests__/__mocks__/lowdb-node.js'
+  },
   testMatch: ['**/__tests__/**/*.test.js'],
   collectCoverageFrom: [
     'routes/**/*.js',

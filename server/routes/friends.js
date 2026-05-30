@@ -1,149 +1,175 @@
-// Friends & Direct Messages router
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
-import { db, safeUser, addXp, flushDatabase, recordDbOp } from '../data/db.js';
+import { getServices } from '../services-registry.js';
 import { emitDmToParticipants } from '../services/socket.js';
-import { createNotification } from './notifications.js';
+import { getJwtSecret } from '../config/index.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'linkist_dev_secret_2026';
-const getUser = (req) => {
+const getUser = async (req) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return null;
-  try { const { userId } = jwt.verify(auth.slice(7), JWT_SECRET); return db.data.users.find(u => u.id === userId) || null; }
-  catch { return null; }
+  try {
+    const { userId } = jwt.verify(auth.slice(7), getJwtSecret());
+    return await getServices().user.getUserById(userId);
+  } catch { return null; }
+};
+
+const safeUser = (user) => {
+  if (!user) return null;
+  return { id: user.id, username: user.username, avatar: user.avatar, bio: user.bio };
 };
 
 export const friendsRouter = Router();
 
-// ─── Friend Requests ──────────────────────────────────────────────
-
-// GET my friends list
-friendsRouter.get('/', (req, res) => {
-  const me = getUser(req);
-  if (!me) return res.status(401).json({ error: 'Unauthorized' });
-  const friends = (me.friends || []).map(fid => safeUser(db.data.users.find(u => u.id === fid))).filter(Boolean);
-  const requests = (me.friendRequests || []).map(rid => safeUser(db.data.users.find(u => u.id === rid))).filter(Boolean);
-  res.json({ friends, requests });
-});
-
-// POST send friend request
-friendsRouter.post('/request/:targetId', (req, res) => {
-  const me = getUser(req);
-  if (!me) return res.status(401).json({ error: 'Unauthorized' });
-  const target = db.data.users.find(u => u.id === req.params.targetId);
-  if (!target) return res.status(404).json({ error: 'User not found' });
-  if (me.id === target.id) return res.status(400).json({ error: 'Cannot add yourself' });
-  if ((me.friends || []).includes(target.id)) return res.status(400).json({ error: 'Already friends' });
-  target.friendRequests = target.friendRequests || [];
-  if (!target.friendRequests.includes(me.id)) target.friendRequests.push(me.id);
-  createNotification(target.id, 'friend_request', '收到好友申请', `用户 ${me.username} 向你发送了好友申请`, { fromUserId: me.id });
-  flushDatabase();
-  res.json({ success: true });
-});
-
-// POST accept friend request
-friendsRouter.post('/accept/:requesterId', (req, res) => {
-  const me = getUser(req);
-  if (!me) return res.status(401).json({ error: 'Unauthorized' });
-  const requester = db.data.users.find(u => u.id === req.params.requesterId);
-  if (!requester) return res.status(404).json({ error: 'User not found' });
-  me.friendRequests = (me.friendRequests || []).filter(id => id !== requester.id);
-  me.friends = me.friends || [];
-  requester.friends = requester.friends || [];
-  if (!me.friends.includes(requester.id)) me.friends.push(requester.id);
-  if (!requester.friends.includes(me.id)) requester.friends.push(me.id);
-  addXp(me.id, 5);
-  addXp(requester.id, 5);
-  createNotification(requester.id, 'friend_accepted', '好友申请已通过', `用户 ${me.username} 同意了你的好友申请`, { fromUserId: me.id });
-  flushDatabase();
-  res.json({ success: true });
-});
-
-// POST decline/remove friend
-friendsRouter.delete('/remove/:otherId', (req, res) => {
-  const me = getUser(req);
-  if (!me) return res.status(401).json({ error: 'Unauthorized' });
-  const other = db.data.users.find(u => u.id === req.params.otherId);
-  me.friends = (me.friends || []).filter(id => id !== req.params.otherId);
-  me.friendRequests = (me.friendRequests || []).filter(id => id !== req.params.otherId);
-  if (other) {
-    other.friends = (other.friends || []).filter(id => id !== me.id);
-    other.friendRequests = (other.friendRequests || []).filter(id => id !== me.id);
-  }
-  flushDatabase();
-  res.json({ success: true });
-});
-
-// ─── Direct Messages ──────────────────────────────────────────────
-
-// GET my DM conversations
-friendsRouter.get('/dms', (req, res) => {
-  const me = getUser(req);
-  if (!me) return res.status(401).json({ error: 'Unauthorized' });
-  const convos = db.data.directMessages
-    .filter(dm => dm.participants.includes(me.id))
-    .map(dm => {
-      const otherId = dm.participants.find(id => id !== me.id);
-      const other = safeUser(db.data.users.find(u => u.id === otherId));
-      const lastMsg = dm.messages[dm.messages.length - 1] || null;
-      const unread = dm.messages.filter(m => m.senderId !== me.id && !m.read).length;
-      return { id: dm.id, other, lastMessage: lastMsg, unread };
+friendsRouter.get('/', async (req, res) => {
+  try {
+    const me = await getUser(req);
+    if (!me) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const friends = await getServices().friend.getFriends(me.id);
+    const requests = await getServices().friend.getFriendRequests(me.id);
+    
+    res.json({
+      friends: friends.map(safeUser).filter(Boolean),
+      requests: requests.map(safeUser).filter(Boolean)
     });
-  res.json(convos);
+  } catch (err) {
+    console.error('获取好友列表错误:', err);
+    res.status(500).json({ error: '获取好友列表失败' });
+  }
 });
 
-// GET specific DM conversation with a user
-friendsRouter.get('/dms/:userId', (req, res) => {
-  const me = getUser(req);
-  if (!me) return res.status(401).json({ error: 'Unauthorized' });
-  const otherId = req.params.userId;
-  let convo = db.data.directMessages.find(dm =>
-    dm.participants.includes(me.id) && dm.participants.includes(otherId)
-  );
-  if (!convo) {
-    convo = { id: uuidv4(), participants: [me.id, otherId], messages: [] };
-    db.data.directMessages.push(convo);
+friendsRouter.post('/request/:targetId', async (req, res) => {
+  try {
+    const me = await getUser(req);
+    if (!me) return res.status(401).json({ error: 'Unauthorized' });
+    
+    await getServices().friend.sendFriendRequest(me.id, req.params.targetId);
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('发送好友请求错误:', err);
+    res.status(500).json({ error: err.message || '发送好友请求失败' });
   }
-  // Mark as read
-  convo.messages.forEach(m => { if (m.senderId !== me.id) m.read = true; });
-  const other = safeUser(db.data.users.find(u => u.id === otherId));
-  const messages = convo.messages.map(m => {
-    const sender = db.data.users.find(u => u.id === m.senderId);
-    return { ...m, sender: sender ? { id: sender.id, username: sender.username, avatar: sender.avatar } : null };
-  });
-  res.json({ id: convo.id, other, messages });
 });
 
-// POST send DM
-friendsRouter.post('/dms/:userId', (req, res) => {
-  const me = getUser(req);
-  if (!me) return res.status(401).json({ error: 'Unauthorized' });
-  const otherId = req.params.userId;
-  const other = db.data.users.find(u => u.id === otherId);
-  if (!other) return res.status(404).json({ error: 'User not found' });
-  let convo = db.data.directMessages.find(dm =>
-    dm.participants.includes(me.id) && dm.participants.includes(otherId)
-  );
-  if (!convo) {
-    convo = { id: uuidv4(), participants: [me.id, otherId], messages: [] };
-    db.data.directMessages.push(convo);
-    recordDbOp('insert', 'directMessages', convo.id, convo);
+friendsRouter.post('/accept/:requesterId', async (req, res) => {
+  try {
+    const me = await getUser(req);
+    if (!me) return res.status(401).json({ error: 'Unauthorized' });
+    
+    await getServices().friend.acceptFriendRequest(me.id, req.params.requesterId);
+    await getServices().user.addXp(me.id, 5);
+    
+    const requester = await getServices().user.getUserById(req.params.requesterId);
+    if (requester) {
+      await getServices().user.addXp(requester.id, 5);
+    }
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('接受好友请求错误:', err);
+    res.status(500).json({ error: err.message || '接受好友请求失败' });
   }
-  const { content } = req.body;
-  if (!content?.trim()) return res.status(400).json({ error: 'Content required' });
-  const msg = {
-    id: uuidv4(),
-    senderId: me.id,
-    content: content.trim(),
-    createdAt: new Date().toISOString(),
-    read: false
-  };
-  convo.messages.push(msg);
-  recordDbOp('update', 'directMessages', convo.id);
-  addXp(me.id, 1);
-  flushDatabase();
-  const msgWithSender = { ...msg, sender: { id: me.id, username: me.username, avatar: me.avatar } };
-  emitDmToParticipants(convo, 'dm:message:new', { convoId: convo.id, message: msgWithSender });
-  res.json(msgWithSender);
+});
+
+friendsRouter.delete('/remove/:otherId', async (req, res) => {
+  try {
+    const me = await getUser(req);
+    if (!me) return res.status(401).json({ error: 'Unauthorized' });
+    
+    await getServices().friend.removeFriend(me.id, req.params.otherId);
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('移除好友错误:', err);
+    res.status(500).json({ error: err.message || '移除好友失败' });
+  }
+});
+
+friendsRouter.get('/dms', async (req, res) => {
+  try {
+    const me = await getUser(req);
+    if (!me) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const dms = await getServices().friend.getDirectMessagesForUser(me.id);
+    
+    const convos = await Promise.all(dms.map(async dm => {
+      const otherId = dm.participants?.find(id => id !== me.id);
+      const other = otherId ? await getServices().user.getUserById(otherId) : null;
+      const lastMsg = dm.messages?.length > 0 ? dm.messages[dm.messages.length - 1] : null;
+      const unread = dm.messages?.filter(m => m.senderId !== me.id && !m.read)?.length || 0;
+      return { id: dm.id, other: safeUser(other), lastMessage: lastMsg, unread };
+    }));
+    
+    res.json(convos);
+  } catch (err) {
+    console.error('获取私信列表错误:', err);
+    res.status(500).json({ error: '获取私信列表失败' });
+  }
+});
+
+friendsRouter.get('/dms/:userId', async (req, res) => {
+  try {
+    const me = await getUser(req);
+    if (!me) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const otherId = req.params.userId;
+    let convo = await getServices().friend.getDirectMessage([me.id, otherId]);
+    
+    if (!convo) {
+      convo = await getServices().friend.createDirectMessage([me.id, otherId]);
+    }
+    
+    convo.messages?.forEach(m => { if (m.senderId !== me.id) m.read = true; });
+    
+    const other = await getServices().user.getUserById(otherId);
+    const messages = await Promise.all((convo.messages || []).map(async m => {
+      const sender = await getServices().user.getUserById(m.senderId);
+      return { ...m, sender: sender ? { id: sender.id, username: sender.username, avatar: sender.avatar } : null };
+    }));
+    
+    res.json({ id: convo.id, other: safeUser(other), messages });
+  } catch (err) {
+    console.error('获取私信对话错误:', err);
+    res.status(500).json({ error: '获取私信对话失败' });
+  }
+});
+
+friendsRouter.post('/dms/:userId', async (req, res) => {
+  try {
+    const me = await getUser(req);
+    if (!me) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const otherId = req.params.userId;
+    const { content } = req.body;
+    
+    if (!content?.trim()) return res.status(400).json({ error: 'Content required' });
+    
+    let convo = await getServices().friend.getDirectMessage([me.id, otherId]);
+    
+    if (!convo) {
+      convo = await getServices().friend.createDirectMessage([me.id, otherId]);
+    }
+    
+    const msg = await getServices().friend.sendDirectMessage(convo.id, {
+      content: content.trim(),
+      authorId: me.id
+    });
+    
+    await getServices().user.addXp(me.id, 1);
+    
+    const msgWithSender = {
+      ...msg,
+      senderId: me.id,
+      sender: { id: me.id, username: me.username, avatar: me.avatar },
+      read: false
+    };
+    
+    emitDmToParticipants(convo, 'dm:message:new', { convoId: convo.id, message: msgWithSender });
+    
+    res.json(msgWithSender);
+  } catch (err) {
+    console.error('发送私信错误:', err);
+    res.status(500).json({ error: err.message || '发送私信失败' });
+  }
 });

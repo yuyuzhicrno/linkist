@@ -1,16 +1,15 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { userService, calcLevel } from '../services/index.js';
-import { db, safeUser, saveDatabase } from '../data/db.js';
+import { getServices } from '../services-registry.js';
 import { validate, schemas, sanitizeInput } from '../middleware/validation.js';
 import { getJwtSecret } from '../config/index.js';
 
-const getUser = (req) => {
+export const getUser = async (req) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return null;
   try {
     const { userId } = jwt.verify(auth.slice(7), getJwtSecret());
-    return db.data.users.find(u => u.id === userId) || null;
+    return await getServices().user.getUserById(userId);
   } catch { return null; }
 };
 
@@ -22,7 +21,7 @@ authRouter.post('/register', validate(schemas.register), async (req, res) => {
     const sanitizedUsername = sanitizeInput(username);
     const sanitizedEmail = sanitizeInput(email);
 
-    await userService.createUser({
+    await getServices().user.createUser({
       username: sanitizedUsername,
       email: sanitizedEmail,
       password
@@ -43,7 +42,7 @@ authRouter.post('/login', validate(schemas.login), async (req, res) => {
     const { email, password } = req.body;
     const sanitizedEmail = sanitizeInput(email);
 
-    const user = await userService.verifyPassword(sanitizedEmail, password);
+    const user = await getServices().user.verifyPassword(sanitizedEmail, password);
     if (!user) {
       return res.status(401).json({ error: '邮箱或密码错误' });
     }
@@ -57,8 +56,8 @@ authRouter.post('/login', validate(schemas.login), async (req, res) => {
   }
 });
 
-authRouter.get('/me', (req, res) => {
-  const user = getUser(req);
+authRouter.get('/me', async (req, res) => {
+  const user = await getUser(req);
   if (!user) return res.status(401).json({ error: 'Unauthorized' });
   const { passwordHash: _, ...safe } = user;
   res.json(safe);

@@ -1,92 +1,108 @@
-// Polls router
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
-import { db, addXp, flushDatabase } from '../data/db.js';
+import { getServices } from '../services-registry.js';
+import { getJwtSecret } from '../config/index.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'linkist_dev_secret_2026';
-const getUser = (req) => {
+const getUser = async (req) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return null;
-  try { const { userId } = jwt.verify(auth.slice(7), JWT_SECRET); return db.data.users.find(u => u.id === userId) || null; }
-  catch { return null; }
+  try {
+    const { userId } = jwt.verify(auth.slice(7), getJwtSecret());
+    return await getServices().user.getUserById(userId);
+  } catch { return null; }
 };
 
 export const pollsRouter = Router();
 
-// GET poll by id
-pollsRouter.get('/:id', (req, res) => {
-  const poll = db.data.polls.find(p => p.id === req.params.id);
-  if (!poll) return res.status(404).json({ error: 'Poll not found' });
-  res.json(poll);
-});
-
-// GET poll by postId
-pollsRouter.get('/post/:postId', (req, res) => {
-  const poll = db.data.polls.find(p => p.postId === req.params.postId);
-  res.json(poll || null);
-});
-
-// POST create poll (standalone or for a post)
-pollsRouter.post('/', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const { question, options, allowMultiple = false, endsAt = null, postId = null } = req.body;
-  if (!question || !Array.isArray(options) || options.length < 2)
-    return res.status(400).json({ error: 'Question and at least 2 options required' });
-  const poll = {
-    id: uuidv4(),
-    postId,
-    question,
-    options: options.map(text => ({ id: uuidv4(), text, votes: [] })),
-    allowMultiple,
-    endsAt,
-    authorId: user.id,
-    createdAt: new Date().toISOString()
-  };
-  db.data.polls.push(poll);
-  if (postId) {
-    const post = db.data.posts.find(p => p.id === postId);
-    if (post) post.pollId = poll.id;
+pollsRouter.get('/:id', async (req, res) => {
+  try {
+    const poll = await getServices().poll.getPollById(req.params.id);
+    if (!poll) return res.status(404).json({ error: 'Poll not found' });
+    res.json(poll);
+  } catch (err) {
+    console.error('获取投票错误:', err);
+    res.status(500).json({ error: '获取投票失败' });
   }
-  addXp(user.id, 5);
-  flushDatabase();
-  res.json(poll);
 });
 
-// POST vote on poll
-pollsRouter.post('/:id/vote', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const poll = db.data.polls.find(p => p.id === req.params.id);
-  if (!poll) return res.status(404).json({ error: 'Poll not found' });
-  if (poll.endsAt && new Date(poll.endsAt) < new Date())
-    return res.status(400).json({ error: 'Poll has ended' });
-  const { optionIds } = req.body; // array of option ids
-  if (!Array.isArray(optionIds) || optionIds.length === 0)
-    return res.status(400).json({ error: 'optionIds required' });
-  if (!poll.allowMultiple && optionIds.length > 1)
-    return res.status(400).json({ error: 'This poll only allows one vote' });
-  // Remove existing votes
-  poll.options.forEach(opt => { opt.votes = opt.votes.filter(uid => uid !== user.id); });
-  // Add new votes
-  optionIds.forEach(oid => {
-    const opt = poll.options.find(o => o.id === oid);
-    if (opt && !opt.votes.includes(user.id)) opt.votes.push(user.id);
-  });
-  addXp(user.id, 2);
-  res.json(poll);
+pollsRouter.get('/post/:postId', async (req, res) => {
+  try {
+    const polls = await getServices().repo.polls();
+    const poll = polls.find(p => p.postId === req.params.postId);
+    res.json(poll || null);
+  } catch (err) {
+    console.error('获取帖子投票错误:', err);
+    res.status(500).json({ error: '获取帖子投票失败' });
+  }
 });
 
-// DELETE poll (author or admin)
-pollsRouter.delete('/:id', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
-  const idx = db.data.polls.findIndex(p => p.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Not found' });
-  if (db.data.polls[idx].authorId !== user.id && user.role !== 'admin')
-    return res.status(403).json({ error: 'Forbidden' });
-  db.data.polls.splice(idx, 1);
-  flushDatabase();
-  res.json({ success: true });
+pollsRouter.post('/', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const { question, options, allowMultiple = false, endsAt = null, postId = null } = req.body;
+    if (!question || !Array.isArray(options) || options.length < 2)
+      return res.status(400).json({ error: 'Question and at least 2 options required' });
+    
+    const poll = await getServices().poll.createPoll({
+      question,
+      options,
+      authorId: user.id,
+      postId,
+      expiresAt: endsAt,
+      allowMultiple
+    });
+    
+    if (postId) {
+      await getServices().post.updatePost(postId, { pollId: poll.id });
+    }
+    
+    await getServices().user.addXp(user.id, 5);
+    
+    res.json(poll);
+  } catch (err) {
+    console.error('创建投票错误:', err);
+    res.status(500).json({ error: '创建投票失败' });
+  }
+});
+
+pollsRouter.post('/:id/vote', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const { optionIds } = req.body;
+    if (!Array.isArray(optionIds) || optionIds.length === 0)
+      return res.status(400).json({ error: 'optionIds required' });
+    
+    const poll = await getServices().poll.votePoll(req.params.id, user.id, optionIds);
+    
+    await getServices().user.addXp(user.id, 2);
+    
+    res.json(poll);
+  } catch (err) {
+    console.error('投票错误:', err);
+    res.status(500).json({ error: err.message || '投票失败' });
+  }
+});
+
+pollsRouter.delete('/:id', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const poll = await getServices().repo.pollById(req.params.id);
+    if (!poll) return res.status(404).json({ error: 'Not found' });
+    
+    if (poll.authorId !== user.id && user.role !== 'admin')
+      return res.status(403).json({ error: 'Forbidden' });
+    
+    await getServices().repo.query('DELETE FROM polls WHERE id = $1', [req.params.id]);
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error('删除投票错误:', err);
+    res.status(500).json({ error: '删除投票失败' });
+  }
 });

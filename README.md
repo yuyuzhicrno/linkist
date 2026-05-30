@@ -40,7 +40,6 @@
 
 ### 用户系统
 - 注册/登录（JWT 认证，7 天有效期）
-- 邮箱验证（注册后需验证才能登录）
 - 个人主页（帖子/专栏统计）
 - 头像上传（文件存储 + CDN 路径）
 - 主题自定义（深色/浅色、8 种主题色、3 档字号）
@@ -184,7 +183,7 @@ linkist/
 | `SMTP_PORT` | 587 | SMTP 服务器端口 |
 | `SMTP_USER` | `ethereal_user@ethereal.email` | SMTP 用户名 |
 | `SMTP_PASS` | `ethereal_pass` | SMTP 密码 |
-| `BASE_URL` | `http://localhost:3001` | 基础 URL（用于生成邮箱验证链接） |
+| `BASE_URL` | `http://localhost:3001` | 基础 URL |
 
 ## License
 

@@ -5,9 +5,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import rateLimit from 'express-rate-limit';
-import { initDatabase, startAutoSave } from './data/db.js';
+import { initDatabase, getRepository } from './data/db.js';
 import { initSocket } from './services/socket.js';
 import { validateConfig, getJwtSecret } from './config/index.js';
+import { initServices } from './services-registry.js';
 import { authRouter } from './routes/auth.js';
 import { channelsRouter } from './routes/channels.js';
 import { postsRouter } from './routes/posts.js';
@@ -119,15 +120,12 @@ app.get('/api/health/full', async (_, res) => {
   }
 });
 
-// Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, './uploads')));
 
-// Serve static files in production
 if (NODE_ENV === 'production') {
   const clientDistPath = path.join(__dirname, '../client/dist');
   app.use(express.static(clientDistPath));
   
-  // Serve index.html for SPA routes
   app.get('*', (req, res) => {
     if (!req.path.startsWith('/api')) {
       res.sendFile(path.join(clientDistPath, 'index.html'));
@@ -160,13 +158,12 @@ async function startServer() {
     console.log('Initializing database...');
     const DB_TYPE = process.env.DB_TYPE || 'file';
     console.log(`Database type: ${DB_TYPE}`);
-    
+
     await initDatabase();
     console.log('Database initialized successfully');
-    
-    if (DB_TYPE === 'file') {
-      startAutoSave();
-    }
+
+    await initServices();
+    console.log('Services initialized successfully');
 
     const server = http.createServer(app);
     initSocket(server);

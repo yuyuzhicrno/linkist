@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
-import { db } from '../data/db.js';
+import { getServices } from '../services-registry.js';
 import { getJwtSecret } from '../config/index.js';
 
 let io = null;
@@ -13,7 +13,7 @@ export function initSocket(httpServer) {
     }
   });
 
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) {
       return next(new Error('Authentication required'));
@@ -21,7 +21,7 @@ export function initSocket(httpServer) {
     try {
       const { userId } = jwt.verify(token, getJwtSecret());
       socket.userId = userId;
-      socket.user = db.data.users.find(u => u.id === userId);
+      socket.user = await getServices().user.getUserById(userId);
       if (!socket.user) {
         return next(new Error('User not found'));
       }
@@ -34,14 +34,14 @@ export function initSocket(httpServer) {
   io.on('connection', (socket) => {
     console.log(`User connected: ${socket.userId}`);
 
-    socket.on('join:channel', (channelId) => {
-      const channel = db.data.channels.find(c => c.id === channelId);
+    socket.on('join:channel', async (channelId) => {
+      const channel = await getServices().channel.getChannelById(channelId);
       if (!channel) {
         socket.emit('error', { message: '频道不存在' });
         return;
       }
       if (!channel.isPublic && 
-          !channel.memberIds.includes(socket.userId) && 
+          !channel.memberIds?.includes(socket.userId) && 
           channel.ownerId !== socket.userId && 
           socket.user.role !== 'admin') {
         socket.emit('error', { message: '无权加入此私密频道' });
@@ -55,13 +55,13 @@ export function initSocket(httpServer) {
       socket.leave(`channel:${channelId}`);
     });
 
-    socket.on('join:dm', (convoId) => {
-      const convo = db.data.directMessages.find(d => d.id === convoId);
+    socket.on('join:dm', async (convoId) => {
+      const convo = await getServices().friend.getDirectMessageById(convoId);
       if (!convo) {
         socket.emit('error', { message: '对话不存在' });
         return;
       }
-      if (!convo.participants.includes(socket.userId) && socket.user.role !== 'admin') {
+      if (!convo.participants?.includes(socket.userId) && socket.user.role !== 'admin') {
         socket.emit('error', { message: '无权加入此对话' });
         return;
       }

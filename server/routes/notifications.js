@@ -1,82 +1,78 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
-import { db, flushDatabase, recordDbOp } from '../data/db.js';
+import { getServices } from '../services-registry.js';
 import { emitToUser } from '../services/socket.js';
+import { getJwtSecret } from '../config/index.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'linkist_dev_secret_2026';
-const getUser = (req) => {
+const getUser = async (req) => {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return null;
-  try { const { userId } = jwt.verify(auth.slice(7), JWT_SECRET); return db.data.users.find(u => u.id === userId) || null; }
-  catch { return null; }
+  try {
+    const { userId } = jwt.verify(auth.slice(7), getJwtSecret());
+    return await getServices().user.getUserById(userId);
+  } catch { return null; }
 };
 
 export const notificationsRouter = Router();
 
-export function createNotification(userId, type, title, message, data = {}) {
-  const notification = {
-    id: uuidv4(),
-    userId,
-    type,
-    title,
-    message,
-    data,
-    isRead: false,
-    createdAt: new Date().toISOString()
-  };
-
-  if (db.data?.notifications) {
-    db.data.notifications.unshift(notification);
-    recordDbOp('insert', 'notifications', notification.id, notification);
-    flushDatabase();
-  }
-
+export async function createNotification(userId, type, title, message, data = {}) {
+  const notification = await getServices().notification.createNotification(userId, type, title, message, data);
   emitToUser(userId, 'notification:new', notification);
-
   return notification;
 }
 
-notificationsRouter.get('/', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+notificationsRouter.get('/', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-  const notifications = db.data.notifications
-    .filter(n => n.userId === user.id)
-    .slice(0, 50);
+    const notifications = await getServices().notification.getNotifications(user.id, { limit: 50 });
 
-  res.json(notifications);
+    res.json(notifications);
+  } catch (err) {
+    console.error('获取通知错误:', err);
+    res.status(500).json({ error: '获取通知失败' });
+  }
 });
 
-notificationsRouter.put('/:id/read', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+notificationsRouter.put('/:id/read', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-  const notification = db.data.notifications.find(n => n.id === req.params.id && n.userId === user.id);
-  if (!notification) return res.status(404).json({ error: 'Notification not found' });
+    const notification = await getServices().notification.markNotificationRead(req.params.id);
+    if (!notification) return res.status(404).json({ error: 'Notification not found' });
 
-  notification.isRead = true;
-  res.json({ success: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('标记通知已读错误:', err);
+    res.status(500).json({ error: '标记通知已读失败' });
+  }
 });
 
-notificationsRouter.put('/read-all', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+notificationsRouter.put('/read-all', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-  db.data.notifications
-    .filter(n => n.userId === user.id)
-    .forEach(n => { n.isRead = true; });
+    await getServices().notification.markAllNotificationsRead(user.id);
 
-  res.json({ success: true });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('标记所有通知已读错误:', err);
+    res.status(500).json({ error: '标记所有通知已读失败' });
+  }
 });
 
-notificationsRouter.delete('/:id', (req, res) => {
-  const user = getUser(req);
-  if (!user) return res.status(401).json({ error: 'Unauthorized' });
+notificationsRouter.delete('/:id', async (req, res) => {
+  try {
+    const user = await getUser(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
-  const idx = db.data.notifications.findIndex(n => n.id === req.params.id && n.userId === user.id);
-  if (idx === -1) return res.status(404).json({ error: 'Notification not found' });
-
-  db.data.notifications.splice(idx, 1);
-  res.json({ success: true });
+    await getServices().repo.deleteNotification(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('删除通知错误:', err);
+    res.status(500).json({ error: '删除通知失败' });
+  }
 });
