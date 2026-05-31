@@ -49,4 +49,7 @@ export const api = {
   // Post comments & votes
   voteComment: (postId, commentId, type) => request('POST', `/posts/${postId}/comments/${commentId}/vote`, { type }),
   replyComment: (postId, commentId, content) => request('POST', `/posts/${postId}/comments/${commentId}/replies`, { content }),
+
+  // Channels
+  markChannelRead: (channelId, lastReadMessageId) => request('POST', `/channels/${channelId}/read`, { lastReadMessageId }),
 };

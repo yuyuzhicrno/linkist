@@ -17,8 +17,12 @@ export function ChatArea({ channel, user }) {
     setLoading(true);
     joinChannel(channelId);
     api.get(`/channels/${channelId}`).then(data => {
-      setMessages(data.messages || []);
+      const msgs = data.messages || [];
+      setMessages(msgs);
       setLoading(false);
+      if (msgs.length > 0) {
+        api.markChannelRead(channelId, msgs[msgs.length - 1].id).catch(() => {});
+      }
     });
 
     return () => {
@@ -30,6 +34,7 @@ export function ChatArea({ channel, user }) {
     const unsubMessage = onChannelMessage((msg) => {
       if (msg.authorId !== user?.id) {
         setMessages(m => [...m, msg]);
+        api.markChannelRead(channelId, msg.id).catch(() => {});
       }
     });
 
@@ -41,11 +46,14 @@ export function ChatArea({ channel, user }) {
       unsubMessage();
       unsubReaction();
     };
-  }, [user]);
+  }, [user, channelId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (messages.length > 0) {
+      api.markChannelRead(channelId, messages[messages.length - 1].id).catch(() => {});
+    }
+  }, [messages, channelId]);
 
   const send = async () => {
     if (!input.trim() || !user || sending) return;
