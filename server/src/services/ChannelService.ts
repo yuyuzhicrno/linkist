@@ -97,4 +97,12 @@ export class ChannelService {
     }
     return result;
   }
+
+  async markChannelRead(channelId: string, userId: string, lastReadMessageId: string): Promise<void> {
+    await this.repo.markChannelRead(channelId, userId, lastReadMessageId);
+  }
+
+  async getUnreadCount(channelId: string, userId: string): Promise<number> {
+    return await this.repo.getUnreadCount(channelId, userId);
+  }
 }

@@ -25,6 +25,7 @@ export class FileRepository extends Repository {
     if (!this.data.comment_replies) this.data.comment_replies = [];
     if (!this.data.channel_messages) this.data.channel_messages = [];
     if (!this.data.dm_messages) this.data.dm_messages = [];
+    if (!this.data.user_channel_reads) this.data.user_channel_reads = [];
   }
 
   async users() {
@@ -604,6 +605,41 @@ export class FileRepository extends Repository {
     await this.db.write();
     return this.messageReactions(messageId, messageType);
   }
+
+  async getLastReadMessageId(channelId, userId) {
+    const read = this.data.user_channel_reads?.find(
+      r => r.channelId === channelId && r.userId === userId
+    );
+    return read?.lastReadMessageId || null;
+  }
+
+  async markChannelRead(channelId, userId, lastReadMessageId) {
+    if (!this.data.user_channel_reads) this.data.user_channel_reads = [];
+    const idx = this.data.user_channel_reads.findIndex(
+      r => r.channelId === channelId && r.userId === userId
+    );
+    if (idx !== -1) {
+      this.data.user_channel_reads[idx].lastReadMessageId = lastReadMessageId;
+      this.data.user_channel_reads[idx].readAt = new Date().toISOString();
+    } else {
+      this.data.user_channel_reads.push({
+        channelId,
+        userId,
+        lastReadMessageId,
+        readAt: new Date().toISOString()
+      });
+    }
+    await this.db.write();
+  }
+
+  async getUnreadCount(channelId, userId) {
+    const lastRead = await this.getLastReadMessageId(channelId, userId);
+    const messages = (this.data.channel_messages || []).filter(m => m.channelId === channelId);
+    if (!lastRead) return messages.length;
+    const lastReadIdx = messages.findIndex(m => m.id === lastRead);
+    if (lastReadIdx === -1) return messages.length;
+    return Math.max(0, messages.length - lastReadIdx - 1);
+  }
 }
 
 export class PostgresRepository extends Repository {
@@ -811,6 +847,16 @@ export class PostgresRepository extends Repository {
         "userId" UUID REFERENCES users(id),
         "createdAt" TIMESTAMP DEFAULT NOW(),
         UNIQUE("messageId", "messageType", emoji, "userId")
+      )
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS user_channel_reads (
+        "channelId" UUID NOT NULL,
+        "userId" UUID NOT NULL,
+        "lastReadMessageId" UUID,
+        "readAt" TIMESTAMP DEFAULT NOW(),
+        PRIMARY KEY ("channelId", "userId")
       )
     `);
 
@@ -1336,6 +1382,40 @@ export class PostgresRepository extends Repository {
       );
     }
     return this.messageReactions(messageId, messageType);
+  }
+
+  async getLastReadMessageId(channelId, userId) {
+    const result = await this.queryOne(
+      `SELECT "lastReadMessageId" FROM user_channel_reads WHERE "channelId" = $1 AND "userId" = $2`,
+      [channelId, userId]
+    );
+    return result?.lastReadMessageId || null;
+  }
+
+  async markChannelRead(channelId, userId, lastReadMessageId) {
+    await this.query(
+      `INSERT INTO user_channel_reads ("channelId", "userId", "lastReadMessageId", "readAt")
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT ("channelId", "userId")
+       DO UPDATE SET "lastReadMessageId" = $3, "readAt" = NOW()`,
+      [channelId, userId, lastReadMessageId]
+    );
+  }
+
+  async getUnreadCount(channelId, userId) {
+    const lastRead = await this.getLastReadMessageId(channelId, userId);
+    const countResult = await this.queryOne(
+      `SELECT COUNT(*) as count FROM channel_messages WHERE "channelId" = $1`,
+      [channelId]
+    );
+    const total = parseInt(countResult?.count || 0);
+    if (!lastRead) return total;
+    const lastReadResult = await this.queryOne(
+      `SELECT COUNT(*) as count FROM channel_messages WHERE "channelId" = $1 AND id = $2`,
+      [channelId, lastRead]
+    );
+    const readIdx = parseInt(lastReadResult?.count || 0);
+    return Math.max(0, total - readIdx);
   }
 
   async deleteChannel(id) {

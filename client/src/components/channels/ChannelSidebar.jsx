@@ -10,15 +10,19 @@ export function ChannelSidebar({ channels, loading, user, activeId, onSelect, on
   const [showCreate, setShowCreate] = useState(false);
   const [newChannel, setNewChannel] = useState({ name: '', description: '', icon: '💬', color: '#7c3aed', isPublic: true });
   const [creating, setCreating] = useState(false);
+  const [error, setError] = useState(null);
 
   const createChannel = async () => {
     if (!newChannel.name.trim()) return;
     setCreating(true);
+    setError(null);
     const data = await api.post('/channels', newChannel);
     if (!data.error) {
       onCreated({ ...data, messageCount: 0, lastMessage: null });
       setShowCreate(false);
       onSelect(data.id);
+    } else {
+      setError(data.error);
     }
     setCreating(false);
   };
@@ -39,6 +43,12 @@ export function ChannelSidebar({ channels, loading, user, activeId, onSelect, on
           </button>
         )}
       </div>
+
+      {error && (
+        <div className="mx-3 mt-2 px-3 py-2 bg-red-500/20 text-red-500 text-xs rounded-lg">
+          {error}
+        </div>
+      )}
 
       {showCreate && user && (
         <div className="p-3 border-b border-[var(--border)] bg-[var(--channel-bg)]">

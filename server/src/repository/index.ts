@@ -54,6 +54,9 @@ export interface Repository {
   channelMessages(channelId: string, options?: { limit?: number; offset?: number }): Promise<ChannelMessage[]>;
   createChannelMessage(msg: Omit<ChannelMessage, 'createdAt'>): Promise<ChannelMessage>;
   toggleReaction(messageId: string, messageType: 'channel' | 'dm', emoji: string, userId: string): Promise<{ emoji: string; userIds: string[] }[]>;
+  getLastReadMessageId(channelId: string, userId: string): Promise<string | null>;
+  markChannelRead(channelId: string, userId: string, lastReadMessageId: string): Promise<void>;
+  getUnreadCount(channelId: string, userId: string): Promise<number>;
 
   dmMessages(dmId: string, options?: { limit?: number; offset?: number }): Promise<DmMessage[]>;
   createDmMessage(msg: Omit<DmMessage, 'createdAt'>): Promise<DmMessage>;

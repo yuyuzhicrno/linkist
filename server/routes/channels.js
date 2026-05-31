@@ -66,7 +66,7 @@ channelsRouter.post('/', validate(schemas.createChannel), authenticateWithUser, 
     const { level } = getServices().user.calcLevel(req.user.xp || 0);
     const CHANNEL_CREATE_LEVEL = 3;
     if (level < CHANNEL_CREATE_LEVEL && req.user.role !== 'admin')
-      return res.status(403).json({ error: `需要达到 ${CHANNEL_CREATE_LEVEL} 级才能创建频道（当前 ${level} 级）` });
+      return res.status(403).json({ error: `需要达到 ${CHANNEL_CREATE_LEVEL} 级才能创建频道（当前 ${level} 级）`, levelRequired: CHANNEL_CREATE_LEVEL, currentLevel: level });
 
     const { name, description, icon, color, isPublic } = req.body;
 
@@ -96,6 +96,17 @@ channelsRouter.post('/:id/join', authenticateWithUser, async (req, res) => {
   } catch (err) {
     logger.error('加入频道错误:', err);
     res.status(500).json({ error: err.message || '加入频道失败' });
+  }
+});
+
+channelsRouter.post('/:id/read', authenticateWithUser, async (req, res) => {
+  try {
+    const { lastReadMessageId } = req.body;
+    await getServices().channel.markChannelRead(req.params.id, req.user.id, lastReadMessageId);
+    res.json({ success: true });
+  } catch (err) {
+    logger.error('标记已读错误:', err);
+    res.status(500).json({ error: err.message || '标记已读失败' });
   }
 });
 
