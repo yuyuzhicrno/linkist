@@ -26,10 +26,7 @@ export function ColumnDetail({ id, user }) {
     setFollowing(true);
     const data = await api.post(`/columns/${id}/follow`);
     if (!data.error) {
-      setCol(c => ({ ...c, followers: data.followed
-        ? [...(c.followers || []), 'me']
-        : (c.followers || []).slice(0, -1)
-      }));
+      setCol(c => ({ ...c, followers: data.followers }));
     }
     setFollowing(false);
   };

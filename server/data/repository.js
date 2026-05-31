@@ -421,7 +421,7 @@ export class FileRepository extends Repository {
     }
 
     await this.db.write();
-    return { followed: idx === -1, followers: column.followers.length };
+    return { followed: idx === -1, followers: column.followers };
   }
 
   async commentById(commentId) {

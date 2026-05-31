@@ -30,7 +30,7 @@ export function ArticleDetail({ columnId, articleId }) {
     const res = await api.post(`/columns/${columnId}/articles/${articleId}/like`);
     if (!res.error) {
       setLiked(res.liked);
-      setData(d => ({ ...d, likes: Array(res.likes).fill(null) }));
+      setData(d => ({ ...d, likes: res.likes }));
     }
   };
 

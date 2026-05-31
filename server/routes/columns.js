@@ -33,9 +33,12 @@ columnsRouter.get('/:id', async (req, res) => {
     if (!col) return res.status(404).json({ error: 'Column not found' });
 
     const author = await getServices().user.getUserById(col.authorId);
+    const articles = await getServices().column.columnPosts(req.params.id);
+    
     res.json({
       ...col,
-      author: author ? { id: author.id, username: author.username, avatar: author.avatar } : null
+      author: author ? { id: author.id, username: author.username, avatar: author.avatar } : null,
+      articles: articles.posts
     });
   } catch (err) {
     logger.error('获取专栏详情错误:', err);
