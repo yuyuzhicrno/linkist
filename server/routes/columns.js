@@ -8,7 +8,7 @@ export const columnsRouter = Router();
 
 columnsRouter.get('/', async (req, res) => {
   try {
-    const columns = await getServices().column.getColumns();
+    const { columns } = await getServices().column.getColumns();
     const enriched = await Promise.all(columns.map(async col => {
       const author = await getServices().user.getUserById(col.authorId);
       return {
