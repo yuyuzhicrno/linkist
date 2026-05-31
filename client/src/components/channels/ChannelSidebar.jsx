@@ -12,19 +12,24 @@ export function ChannelSidebar({ channels, loading, user, activeId, onSelect, on
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState(null);
 
+  const CHANNEL_CREATE_LEVEL = 3;
+  const userLevel = user ? Math.floor((Math.sqrt(2 * (user.xp || 0) / 100) + 1)) : 0;
+  const canCreateChannel = user && (userLevel >= CHANNEL_CREATE_LEVEL || user.role === 'admin');
+
   const createChannel = async () => {
     if (!newChannel.name.trim()) return;
     setCreating(true);
     setError(null);
-    const data = await api.post('/channels', newChannel);
-    if (!data.error) {
+    try {
+      const data = await api.post('/channels', newChannel);
       onCreated({ ...data, messageCount: 0, lastMessage: null });
       setShowCreate(false);
       onSelect(data.id);
-    } else {
-      setError(data.error);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCreating(false);
     }
-    setCreating(false);
   };
 
   return (
@@ -37,7 +42,12 @@ export function ChannelSidebar({ channels, loading, user, activeId, onSelect, on
         {user && (
           <button
             onClick={() => setShowCreate(!showCreate)}
-            className="w-7 h-7 rounded-lg bg-[var(--accent)]/20 flex items-center justify-center text-[var(--accent)] hover:bg-[var(--accent)]/30 transition-colors text-lg font-bold"
+            className={`w-7 h-7 rounded-lg flex items-center justify-center text-lg font-bold transition-colors ${
+              canCreateChannel 
+                ? 'bg-[var(--accent)]/20 text-[var(--accent)] hover:bg-[var(--accent)]/30' 
+                : 'bg-[var(--surface-3)]/50 text-[var(--text-muted)] cursor-not-allowed'
+            }`}
+            title={canCreateChannel ? '创建频道' : `需要达到 ${CHANNEL_CREATE_LEVEL} 级才能创建频道（当前 ${userLevel} 级）`}
           >
             +
           </button>
@@ -50,7 +60,7 @@ export function ChannelSidebar({ channels, loading, user, activeId, onSelect, on
         </div>
       )}
 
-      {showCreate && user && (
+      {showCreate && user && canCreateChannel && (
         <div className="p-3 border-b border-[var(--border)] bg-[var(--channel-bg)]">
           <input
             className="w-full px-3 py-2 text-sm rounded-lg bg-[var(--surface-3)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] mb-2 focus:border-[var(--accent)] transition-colors"
