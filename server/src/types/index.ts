@@ -38,7 +38,7 @@ export interface Post {
   pollId?: string;
   channelId?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface Channel {
@@ -58,13 +58,6 @@ export interface Channel {
 export interface DirectMessage {
   id: string;
   participants: string[];
-  messages: Array<{
-    id: string;
-    authorId: string;
-    content: string;
-    createdAt: string;
-    reactions: Record<string, string[]>;
-  }>;
   messageCount?: number;
   createdAt?: string;
 }
@@ -110,9 +103,15 @@ export interface Comment {
   authorId: string;
   content: string;
   upvotes: string[];
+  downvotes?: string[];
   replyCount: number;
   createdAt: string;
+  updatedAt?: string;
   replies?: Reply[];
+}
+
+export interface CommentWithReplies extends Comment {
+  replies: Reply[];
 }
 
 export interface Reply {
@@ -120,6 +119,8 @@ export interface Reply {
   commentId: string;
   authorId: string;
   content: string;
+  upvotes?: string[];
+  downvotes?: string[];
   createdAt: string;
 }
 
@@ -129,6 +130,7 @@ export interface ChannelMessage {
   authorId: string;
   content: string;
   createdAt: string;
+  reactions?: Record<string, string[]>;
 }
 
 export interface DmMessage {
@@ -137,6 +139,7 @@ export interface DmMessage {
   authorId: string;
   content: string;
   createdAt: string;
+  reactions?: Record<string, string[]>;
 }
 
 export interface MessageReaction {
@@ -151,9 +154,39 @@ export interface MessageReaction {
 export interface Column {
   id: string;
   title: string;
+  slug: string;
   description: string;
   authorId: string;
-  posts: string[];
-  createdAt: string;
-  isPublic: boolean;
+  coverColor: string;
+  followers: string[];
+  articleCount?: number;
+  createdAt?: string;
+  isPublic?: boolean;
+}
+
+export interface ColumnArticle {
+  id: string;
+  columnId: string;
+  postId?: string;
+  title: string;
+  summary: string;
+  content: string;
+  tags: string[];
+  likes: string[];
+  views: number;
+  readTime: number;
+  createdAt?: string;
+}
+
+export interface ColumnPost {
+  columnId: string;
+  postId: string;
+  addedAt: string;
+}
+
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
 }

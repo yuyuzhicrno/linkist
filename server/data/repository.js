@@ -20,6 +20,11 @@ export class FileRepository extends Repository {
 
   async init() {
     this.data = this.db.data;
+    // 初始化独立集合
+    if (!this.data.post_comments) this.data.post_comments = [];
+    if (!this.data.comment_replies) this.data.comment_replies = [];
+    if (!this.data.channel_messages) this.data.channel_messages = [];
+    if (!this.data.dm_messages) this.data.dm_messages = [];
   }
 
   async users() {
@@ -93,7 +98,7 @@ export class FileRepository extends Repository {
     post.upvotes = [];
     post.downvotes = [];
     post.views = 0;
-    post.comments = [];
+    post.commentCount = 0;
     post.isPinned = false;
     this.data.posts.push(post);
     await this.db.write();
@@ -113,6 +118,10 @@ export class FileRepository extends Repository {
     const idx = this.data.posts?.findIndex(p => p.id === id);
     if (idx === -1) return false;
     this.data.posts.splice(idx, 1);
+    // 删除相关评论和回复
+    const deletedCommentIds = (this.data.post_comments || []).filter(c => c.postId === id).map(c => c.id);
+    this.data.post_comments = (this.data.post_comments || []).filter(c => c.postId !== id);
+    this.data.comment_replies = (this.data.comment_replies || []).filter(r => !deletedCommentIds.includes(r.commentId));
     await this.db.write();
     return true;
   }
@@ -144,7 +153,7 @@ export class FileRepository extends Repository {
     if (!this.data.channels) this.data.channels = [];
     channel.createdAt = new Date().toISOString();
     channel.memberIds = channel.memberIds || [];
-    channel.messages = channel.messages || [];
+    channel.messageCount = 0;
     this.data.channels.push(channel);
     await this.db.write();
     return channel;
@@ -156,6 +165,16 @@ export class FileRepository extends Repository {
     Object.assign(this.data.channels[idx], updates);
     await this.db.write();
     return this.data.channels[idx];
+  }
+
+  async deleteChannel(id) {
+    const idx = this.data.channels?.findIndex(c => c.id === id);
+    if (idx === -1) return false;
+    this.data.channels.splice(idx, 1);
+    // 删除相关消息
+    this.data.channel_messages = (this.data.channel_messages || []).filter(m => m.channelId !== id);
+    await this.db.write();
+    return true;
   }
 
   async directMessages(participants) {
@@ -172,7 +191,7 @@ export class FileRepository extends Repository {
   async createDirectMessage(dm) {
     if (!this.data.directMessages) this.data.directMessages = [];
     dm.createdAt = new Date().toISOString();
-    dm.messages = dm.messages || [];
+    dm.messageCount = 0;
     this.data.directMessages.push(dm);
     await this.db.write();
     return dm;
@@ -184,6 +203,16 @@ export class FileRepository extends Repository {
     Object.assign(this.data.directMessages[idx], updates);
     await this.db.write();
     return this.data.directMessages[idx];
+  }
+
+  async deleteDirectMessage(id) {
+    const idx = this.data.directMessages?.findIndex(dm => dm.id === id);
+    if (idx === -1) return false;
+    this.data.directMessages.splice(idx, 1);
+    // 删除相关消息
+    this.data.dm_messages = (this.data.dm_messages || []).filter(m => m.dmId !== id);
+    await this.db.write();
+    return true;
   }
 
   async notifications(userId, options = {}) {
@@ -273,138 +302,307 @@ export class FileRepository extends Repository {
     return this.data.polls[idx];
   }
 
-  async commentById(commentId) {
-    for (const post of (this.data.posts || [])) {
-      const comment = post.comments?.find(c => c.id === commentId);
-      if (comment) return comment;
+  async deletePoll(id) {
+    const idx = this.data.polls?.findIndex(p => p.id === id);
+    if (idx === -1) return false;
+    this.data.polls.splice(idx, 1);
+    await this.db.write();
+    return true;
+  }
+
+  async columns() {
+    const columns = this.data.columns || [];
+    return columns.map(col => ({
+      ...col,
+      articleCount: (this.data.column_articles || []).filter(a => a.columnId === col.id).length
+    }));
+  }
+
+  async columnById(id) {
+    return this.data.columns?.find(c => c.id === id) || null;
+  }
+
+  async columnBySlug(slug) {
+    return this.data.columns?.find(c => c.slug === slug) || null;
+  }
+
+  async createColumn(column) {
+    if (!this.data.columns) this.data.columns = [];
+    column.createdAt = new Date().toISOString();
+    column.followers = [];
+    this.data.columns.push(column);
+    await this.db.write();
+    return column;
+  }
+
+  async columnPosts(columnId, options = {}) {
+    const { limit = 50, offset = 0 } = options;
+    const postIds = (this.data.column_posts || [])
+      .filter(cp => cp.columnId === columnId)
+      .sort((a, b) => new Date(b.addedAt) - new Date(a.addedAt))
+      .slice(offset, offset + limit)
+      .map(cp => cp.postId);
+
+    return postIds.map(id => this.data.posts?.find(p => p.id === id)).filter(Boolean);
+  }
+
+  async addColumnArticle(columnId, article) {
+    if (!this.data.column_articles) this.data.column_articles = [];
+    const column = this.data.columns?.find(c => c.id === columnId);
+    if (!column) return null;
+
+    const newArticle = {
+      id: article.id,
+      columnId,
+      title: article.title,
+      summary: article.summary || '',
+      content: article.content || '',
+      tags: article.tags || [],
+      likes: [],
+      views: 0,
+      readTime: article.readTime || 1,
+      createdAt: new Date().toISOString()
+    };
+
+    this.data.column_articles.push(newArticle);
+
+    if (article.postId) {
+      if (!this.data.column_posts) this.data.column_posts = [];
+      this.data.column_posts.push({
+        columnId,
+        postId: article.postId,
+        addedAt: new Date().toISOString()
+      });
     }
-    return null;
+
+    await this.db.write();
+    return newArticle;
+  }
+
+  async getColumnArticle(columnId, articleId) {
+    const article = this.data.column_articles?.find(
+      a => a.id === articleId && a.columnId === columnId
+    );
+    if (!article) return null;
+
+    article.views = (article.views || 0) + 1;
+    await this.db.write();
+    return article;
+  }
+
+  async toggleColumnArticleLike(columnId, articleId, userId) {
+    const article = this.data.column_articles?.find(
+      a => a.id === articleId && a.columnId === columnId
+    );
+    if (!article) return null;
+
+    article.likes = article.likes || [];
+    const likeIdx = article.likes.indexOf(userId);
+    if (likeIdx === -1) {
+      article.likes.push(userId);
+    } else {
+      article.likes.splice(likeIdx, 1);
+    }
+
+    await this.db.write();
+    return { likes: article.likes.length, liked: likeIdx === -1 };
+  }
+
+  async toggleColumnFollow(columnId, userId) {
+    const column = this.data.columns?.find(c => c.id === columnId);
+    if (!column) return null;
+
+    column.followers = column.followers || [];
+    const idx = column.followers.indexOf(userId);
+    if (idx === -1) {
+      column.followers.push(userId);
+    } else {
+      column.followers.splice(idx, 1);
+    }
+
+    await this.db.write();
+    return { followed: idx === -1, followers: column.followers.length };
+  }
+
+  async commentById(commentId) {
+    return this.data.post_comments?.find(c => c.id === commentId) || null;
   }
 
   async postComments(postId) {
-    const post = this.data.posts?.find(p => p.id === postId);
-    return post?.comments || [];
+    return (this.data.post_comments || []).filter(c => c.postId === postId)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
   }
 
   async createComment(comment) {
     const { id, postId, authorId, content } = comment;
     const post = this.data.posts?.find(p => p.id === postId);
     if (!post) return null;
-    if (!post.comments) post.comments = [];
+    
+    if (!this.data.post_comments) this.data.post_comments = [];
     const newComment = {
       id,
+      postId,
       authorId,
       content,
       createdAt: new Date().toISOString(),
-      replies: [],
-      upvotes: []
+      upvotes: [],
+      replyCount: 0
     };
-    post.comments.push(newComment);
+    this.data.post_comments.push(newComment);
     post.commentCount = (post.commentCount || 0) + 1;
     await this.db.write();
     return newComment;
   }
 
   async commentUpvote(commentId, userId) {
-    for (const post of (this.data.posts || [])) {
-      const comment = post.comments?.find(c => c.id === commentId);
-      if (comment) {
-        comment.upvotes = comment.upvotes || [];
-        if (comment.upvotes.includes(userId)) {
-          comment.upvotes = comment.upvotes.filter(id => id !== userId);
-        } else {
-          comment.upvotes.push(userId);
-        }
-        await this.db.write();
-        return comment;
-      }
+    const comment = this.data.post_comments?.find(c => c.id === commentId);
+    if (!comment) return null;
+    comment.upvotes = comment.upvotes || [];
+    if (comment.upvotes.includes(userId)) {
+      comment.upvotes = comment.upvotes.filter(id => id !== userId);
+    } else {
+      comment.upvotes.push(userId);
     }
-    return null;
+    await this.db.write();
+    return comment;
   }
 
   async commentReplies(commentId) {
-    for (const post of (this.data.posts || [])) {
-      const comment = post.comments?.find(c => c.id === commentId);
-      if (comment) {
-        return comment.replies || [];
-      }
-    }
-    return [];
+    return (this.data.comment_replies || []).filter(r => r.commentId === commentId)
+      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
   }
 
   async createReply(reply) {
     const { id, commentId, authorId, content } = reply;
-    for (const post of (this.data.posts || [])) {
-      const comment = post.comments?.find(c => c.id === commentId);
-      if (comment) {
-        const newReply = {
-          id,
-          authorId,
-          content,
-          createdAt: new Date().toISOString()
-        };
-        comment.replies = comment.replies || [];
-        comment.replies.push(newReply);
-        comment.replyCount = (comment.replyCount || 0) + 1;
-        await this.db.write();
-        return newReply;
-      }
-    }
-    return null;
+    const comment = this.data.post_comments?.find(c => c.id === commentId);
+    if (!comment) return null;
+    
+    if (!this.data.comment_replies) this.data.comment_replies = [];
+    const newReply = {
+      id,
+      commentId,
+      authorId,
+      content,
+      createdAt: new Date().toISOString()
+    };
+    this.data.comment_replies.push(newReply);
+    comment.replyCount = (comment.replyCount || 0) + 1;
+    await this.db.write();
+    return newReply;
+  }
+
+  async updateComment(id, updates) {
+    const idx = this.data.post_comments?.findIndex(c => c.id === id);
+    if (idx === -1) return null;
+    if (updates.content !== undefined) this.data.post_comments[idx].content = updates.content;
+    if (updates.upvotes !== undefined) this.data.post_comments[idx].upvotes = updates.upvotes;
+    await this.db.write();
+    return this.data.post_comments[idx];
+  }
+
+  async deleteComment(id) {
+    const idx = this.data.post_comments?.findIndex(c => c.id === id);
+    if (idx === -1) return false;
+    const comment = this.data.post_comments[idx];
+    const post = this.data.posts?.find(p => p.id === comment.postId);
+    if (post) post.commentCount = Math.max(0, (post.commentCount || 0) - 1);
+    this.data.post_comments.splice(idx, 1);
+    this.data.comment_replies = (this.data.comment_replies || []).filter(r => r.commentId !== id);
+    await this.db.write();
+    return true;
   }
 
   async channelMessages(channelId, options = {}) {
-    const channel = this.data.channels?.find(c => c.id === channelId);
-    return channel?.messages || [];
+    const { limit = 50, offset = 0 } = options;
+    const messages = (this.data.channel_messages || []).filter(m => m.channelId === channelId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return messages.slice(offset, offset + limit);
   }
 
   async createChannelMessage(msg) {
     const { id, channelId, authorId, content } = msg;
     const channel = this.data.channels?.find(c => c.id === channelId);
     if (!channel) return null;
-    if (!channel.messages) channel.messages = [];
+    
+    if (!this.data.channel_messages) this.data.channel_messages = [];
     const newMsg = {
       id,
+      channelId,
       authorId,
       content,
       createdAt: new Date().toISOString(),
       reactions: {}
     };
-    channel.messages.push(newMsg);
+    this.data.channel_messages.push(newMsg);
     channel.messageCount = (channel.messageCount || 0) + 1;
     await this.db.write();
     return newMsg;
   }
 
   async dmMessages(dmId, options = {}) {
-    const dm = this.data.directMessages?.find(d => d.id === dmId);
-    return dm?.messages || [];
+    const { limit = 50, offset = 0 } = options;
+    const messages = (this.data.dm_messages || []).filter(m => m.dmId === dmId)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return messages.slice(offset, offset + limit);
   }
 
   async createDmMessage(msg) {
     const { id, dmId, authorId, content } = msg;
     const dm = this.data.directMessages?.find(d => d.id === dmId);
     if (!dm) return null;
-    if (!dm.messages) dm.messages = [];
+    
+    if (!this.data.dm_messages) this.data.dm_messages = [];
     const newMsg = {
       id,
+      dmId,
       authorId,
       content,
       createdAt: new Date().toISOString(),
       reactions: {}
     };
-    dm.messages.push(newMsg);
+    this.data.dm_messages.push(newMsg);
     dm.messageCount = (dm.messageCount || 0) + 1;
     await this.db.write();
     return newMsg;
   }
 
   async messageReactions(messageId, messageType) {
-    return [];
+    const reactions = {};
+    const allReactions = this.data.message_reactions || [];
+    const messageReactions = allReactions.filter(r => r.messageId === messageId && r.messageType === messageType);
+    
+    for (const reaction of messageReactions) {
+      if (!reactions[reaction.emoji]) {
+        reactions[reaction.emoji] = [];
+      }
+      reactions[reaction.emoji].push(reaction.userId);
+    }
+    
+    return Object.entries(reactions).map(([emoji, userIds]) => ({ emoji, userIds }));
   }
 
   async toggleReaction(messageId, messageType, emoji, userId) {
-    return [];
+    if (!this.data.message_reactions) this.data.message_reactions = [];
+    
+    const existingIdx = this.data.message_reactions.findIndex(
+      r => r.messageId === messageId && r.messageType === messageType && r.emoji === emoji && r.userId === userId
+    );
+    
+    if (existingIdx !== -1) {
+      this.data.message_reactions.splice(existingIdx, 1);
+    } else {
+      this.data.message_reactions.push({
+        id: crypto.randomUUID(),
+        messageId,
+        messageType,
+        emoji,
+        userId,
+        createdAt: new Date().toISOString()
+      });
+    }
+    
+    await this.db.write();
+    return this.messageReactions(messageId, messageType);
   }
 }
 
@@ -490,11 +688,40 @@ export class PostgresRepository extends Repository {
       CREATE TABLE IF NOT EXISTS columns (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         title VARCHAR(100) NOT NULL,
+        slug VARCHAR(100) UNIQUE NOT NULL,
         description TEXT DEFAULT '',
         "authorId" UUID REFERENCES users(id),
-        posts UUID[] DEFAULT '{}',
+        "coverColor" VARCHAR(20) DEFAULT '#7c3aed',
+        followers UUID[] DEFAULT '{}',
         "createdAt" TIMESTAMP DEFAULT NOW(),
         "isPublic" BOOLEAN DEFAULT true
+      )
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS column_articles (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "columnId" UUID REFERENCES columns(id) ON DELETE CASCADE,
+        "postId" UUID,
+        title TEXT NOT NULL,
+        summary TEXT DEFAULT '',
+        content TEXT DEFAULT '',
+        tags TEXT[] DEFAULT '{}',
+        likes UUID[] DEFAULT '{}',
+        views INTEGER DEFAULT 0,
+        "readTime" INTEGER DEFAULT 1,
+        "createdAt" TIMESTAMP DEFAULT NOW(),
+        UNIQUE("columnId", "postId")
+      )
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS column_posts (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        "columnId" UUID REFERENCES columns(id) ON DELETE CASCADE,
+        "postId" UUID REFERENCES posts(id) ON DELETE CASCADE,
+        "addedAt" TIMESTAMP DEFAULT NOW(),
+        UNIQUE("columnId", "postId")
       )
     `);
 
@@ -599,6 +826,9 @@ export class PostgresRepository extends Repository {
       CREATE INDEX IF NOT EXISTS idx_channel_messages_channelId ON channel_messages("channelId");
       CREATE INDEX IF NOT EXISTS idx_dm_messages_dmId ON dm_messages("dmId");
       CREATE INDEX IF NOT EXISTS idx_message_reactions_message ON message_reactions("messageId", "messageType");
+      CREATE INDEX IF NOT EXISTS idx_column_articles_columnId ON column_articles("columnId");
+      CREATE INDEX IF NOT EXISTS idx_column_posts_columnId ON column_posts("columnId");
+      CREATE INDEX IF NOT EXISTS idx_column_posts_postId ON column_posts("postId");
     `);
   }
 
@@ -722,7 +952,7 @@ export class PostgresRepository extends Repository {
     for (const [key, value] of Object.entries(updates)) {
       if (value !== undefined) {
         fields.push(`"${key}" = $${idx}`);
-        values.push(['upvotes', 'downvotes', 'comments'].includes(key) ? JSON.stringify(value) : value);
+        values.push(['upvotes', 'downvotes'].includes(key) ? JSON.stringify(value) : value);
         idx++;
       }
     }
@@ -778,7 +1008,7 @@ export class PostgresRepository extends Repository {
     for (const [key, value] of Object.entries(updates)) {
       if (value !== undefined) {
         fields.push(`"${key}" = $${idx}`);
-        values.push(['messages', 'memberIds'].includes(key) ? JSON.stringify(value) : value);
+        values.push(['memberIds'].includes(key) ? JSON.stringify(value) : value);
         idx++;
       }
     }
@@ -804,10 +1034,10 @@ export class PostgresRepository extends Repository {
   }
 
   async createDirectMessage(dm) {
-    const { id, participants, messages } = dm;
+    const { id, participants } = dm;
     return this.queryOne(
-      `INSERT INTO "directMessages" (id, participants, messages) VALUES ($1, $2, $3) RETURNING *`,
-      [id, participants, JSON.stringify(messages || [])]
+      `INSERT INTO "directMessages" (id, participants) VALUES ($1, $2) RETURNING *`,
+      [id, participants]
     );
   }
 
@@ -819,7 +1049,7 @@ export class PostgresRepository extends Repository {
     for (const [key, value] of Object.entries(updates)) {
       if (value !== undefined) {
         fields.push(`"${key}" = $${idx}`);
-        values.push(key === 'messages' ? JSON.stringify(value) : value);
+        values.push(value);
         idx++;
       }
     }
@@ -949,6 +1179,38 @@ export class PostgresRepository extends Repository {
     return this.queryOne('SELECT * FROM post_comments WHERE id = $1', [id]);
   }
 
+  async updateComment(id, updates) {
+    const setClauses = [];
+    const values = [];
+    let paramIdx = 1;
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        setClauses.push(`"${key}" = $${paramIdx}`);
+        values.push(value);
+        paramIdx++;
+      }
+    }
+    if (setClauses.length === 0) return this.commentById(id);
+    setClauses.push(`"updatedAt" = NOW()`);
+    values.push(id);
+    return this.queryOne(
+      `UPDATE post_comments SET ${setClauses.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+      values
+    );
+  }
+
+  async deleteComment(id) {
+    const comment = await this.commentById(id);
+    if (!comment) return false;
+    await this.pool.query('DELETE FROM comment_replies WHERE "commentId" = $1', [id]);
+    await this.pool.query('DELETE FROM post_comments WHERE id = $1', [id]);
+    await this.pool.query(
+      'UPDATE posts SET "commentCount" = GREATEST(0, COALESCE("commentCount", 0) - 1) WHERE id = $1',
+      [comment.postId]
+    );
+    return true;
+  }
+
   async postComments(postId) {
     return this.query(
       'SELECT * FROM post_comments WHERE "postId" = $1 ORDER BY "createdAt" ASC',
@@ -1074,6 +1336,157 @@ export class PostgresRepository extends Repository {
       );
     }
     return this.messageReactions(messageId, messageType);
+  }
+
+  async deleteChannel(id) {
+    const channel = await this.channelById(id);
+    if (!channel) return false;
+    await this.query('DELETE FROM channel_messages WHERE "channelId" = $1', [id]);
+    await this.query('DELETE FROM channels WHERE id = $1', [id]);
+    return true;
+  }
+
+  async deleteDirectMessage(id) {
+    const dm = await this.directMessageById(id);
+    if (!dm) return false;
+    await this.query('DELETE FROM dm_messages WHERE "dmId" = $1', [id]);
+    await this.query('DELETE FROM "directMessages" WHERE id = $1', [id]);
+    return true;
+  }
+
+  async columns(options = {}) {
+    const { page = 1, limit = 20 } = options;
+    const offset = (page - 1) * limit;
+
+    const columns = await this.query(
+      `SELECT c.*, COUNT(ca.id) as "articleCount" 
+       FROM columns c 
+       LEFT JOIN column_articles ca ON c.id = ca."columnId" 
+       GROUP BY c.id 
+       ORDER BY c."createdAt" DESC 
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    const countResult = await this.queryOne('SELECT COUNT(*) as count FROM columns', []);
+
+    return {
+      columns,
+      total: parseInt(countResult?.count || 0),
+      page,
+      limit
+    };
+  }
+
+  async columnById(id) {
+    return this.queryOne('SELECT * FROM columns WHERE id = $1', [id]);
+  }
+
+  async columnBySlug(slug) {
+    return this.queryOne('SELECT * FROM columns WHERE slug = $1', [slug]);
+  }
+
+  async createColumn(column) {
+    const { id, title, slug, description, authorId, coverColor, isPublic } = column;
+    return this.queryOne(
+      `INSERT INTO columns (id, title, slug, description, "authorId", "coverColor", "isPublic")
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [id, title, slug, description || '', authorId, coverColor || '#7c3aed', isPublic !== false]
+    );
+  }
+
+  async columnPosts(columnId, options = {}) {
+    const { limit = 50, offset = 0 } = options;
+    return this.query(
+      `SELECT p.* FROM posts p
+       INNER JOIN column_posts cp ON p.id = cp."postId"
+       WHERE cp."columnId" = $1
+       ORDER BY cp."addedAt" DESC
+       LIMIT $2 OFFSET $3`,
+      [columnId, limit, offset]
+    );
+  }
+
+  async addColumnArticle(columnId, article) {
+    const column = await this.columnById(columnId);
+    if (!column) return null;
+
+    const { id, title, summary, content, tags, readTime, postId } = article;
+    const result = await this.queryOne(
+      `INSERT INTO column_articles (id, "columnId", "postId", title, summary, content, tags, "readTime")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
+      [id, columnId, postId, title, summary || '', content || '', tags || [], readTime || 1]
+    );
+
+    if (postId) {
+      await this.query(
+        `INSERT INTO column_posts (id, "columnId", "postId") VALUES ($1, $2, $3)
+         ON CONFLICT ("columnId", "postId") DO NOTHING`,
+        [crypto.randomUUID(), columnId, postId]
+      );
+    }
+
+    return result;
+  }
+
+  async getColumnArticle(columnId, articleId) {
+    const article = await this.queryOne(
+      'SELECT * FROM column_articles WHERE id = $1 AND "columnId" = $2',
+      [articleId, columnId]
+    );
+    if (!article) return null;
+
+    await this.query(
+      'UPDATE column_articles SET views = views + 1 WHERE id = $1',
+      [articleId]
+    );
+    article.views = (article.views || 0) + 1;
+    return article;
+  }
+
+  async toggleColumnArticleLike(columnId, articleId, userId) {
+    const article = await this.queryOne(
+      'SELECT * FROM column_articles WHERE id = $1 AND "columnId" = $2',
+      [articleId, columnId]
+    );
+    if (!article) return null;
+
+    const likes = article.likes || [];
+    const likeIdx = likes.indexOf(userId);
+    if (likeIdx === -1) {
+      likes.push(userId);
+    } else {
+      likes.splice(likeIdx, 1);
+    }
+
+    await this.query(
+      'UPDATE column_articles SET likes = $1 WHERE id = $2',
+      [likes, articleId]
+    );
+
+    return { ...article, likes };
+  }
+
+  async toggleColumnFollow(columnId, userId) {
+    const column = await this.columnById(columnId);
+    if (!column) return null;
+
+    const followers = column.followers || [];
+    const idx = followers.indexOf(userId);
+    if (idx === -1) {
+      followers.push(userId);
+    } else {
+      followers.splice(idx, 1);
+    }
+
+    await this.query(
+      'UPDATE columns SET followers = $1 WHERE id = $2',
+      [followers, columnId]
+    );
+
+    return { followed: idx === -1, followers };
   }
 
   async close() {

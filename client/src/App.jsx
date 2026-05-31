@@ -9,6 +9,7 @@ import ColumnsPage from './pages/ColumnsPage.jsx';
 import { LoginPage, RegisterPage } from './pages/AuthPages.jsx';
 import UserProfilePage from './pages/UserProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
+import { ProtectedRoute, PublicRoute } from './components/ui/ProtectedRoute.jsx';
 
 export default function App() {
   return (
@@ -17,15 +18,23 @@ export default function App() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/forum" element={<ForumPage />} />
-        <Route path="/forum/new" element={<NewPostPage />} />
+        <Route path="/forum/new" element={
+          <ProtectedRoute><NewPostPage /></ProtectedRoute>
+        } />
         <Route path="/forum/:id" element={<PostDetailPage />} />
         <Route path="/columns" element={<ColumnsPage />} />
         <Route path="/columns/:columnId" element={<ColumnsPage />} />
         <Route path="/columns/:columnId/articles/:articleId" element={<ColumnsPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/login" element={
+          <PublicRoute><LoginPage /></PublicRoute>
+        } />
+        <Route path="/register" element={
+          <PublicRoute><RegisterPage /></PublicRoute>
+        } />
         <Route path="/user/:username" element={<UserProfilePage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings" element={
+          <ProtectedRoute><SettingsPage /></ProtectedRoute>
+        } />
       </Route>
 
       {/* Channel layout (full height, no scroll padding) */}

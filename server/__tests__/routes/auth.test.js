@@ -11,7 +11,7 @@ process.env.DB_TYPE = 'file';
 process.env.SEED_PASSWORD = 'test_password';
 
 import { initDatabase } from '../../data/db.js';
-import { initServices } from '../../services-registry.js';
+import { initServerServices } from '../../services-registry.js';
 import { authRouter } from '../../routes/auth.js';
 
 const app = express();
@@ -23,7 +23,7 @@ let db;
 
 beforeAll(async () => {
   db = await initDatabase();
-  await initServices();
+  await initServerServices();
 });
 
 describe('Auth API', () => {

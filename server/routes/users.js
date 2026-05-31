@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { getServices } from '../services-registry.js';
 import { authenticateWithUser } from '../middleware/auth.js';
+import logger from '../utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -38,7 +39,7 @@ usersRouter.get('/me', authenticateWithUser, async (req, res) => {
   try {
     res.json({ ...safeUser(req.user), levelInfo: getServices().user.calcLevel(req.user.xp || 0) });
   } catch (err) {
-    console.error('获取用户信息错误:', err);
+    logger.error('获取用户信息错误:', err);
     res.status(500).json({ error: '获取用户信息失败' });
   }
 });
@@ -64,7 +65,7 @@ usersRouter.get('/:id', async (req, res) => {
       posts: postStats
     });
   } catch (err) {
-    console.error('获取用户资料错误:', err);
+    logger.error('获取用户资料错误:', err);
     res.status(500).json({ error: '获取用户资料失败' });
   }
 });
@@ -81,7 +82,7 @@ usersRouter.put('/me', authenticateWithUser, async (req, res) => {
     const updated = await getServices().user.updateUser(req.user.id, updates);
     res.json({ ...safeUser(updated), levelInfo: getServices().user.calcLevel(updated.xp || 0) });
   } catch (err) {
-    console.error('更新用户资料错误:', err);
+    logger.error('更新用户资料错误:', err);
     res.status(500).json({ error: '更新用户资料失败' });
   }
 });
@@ -103,7 +104,7 @@ usersRouter.post('/me/avatar', authenticateWithUser, avatarUpload.single('avatar
     const updated = await getServices().user.getUserById(req.user.id);
     res.json({ ...safeUser(updated), levelInfo: getServices().user.calcLevel(updated.xp || 0) });
   } catch (err) {
-    console.error('上传头像错误:', err);
+    logger.error('上传头像错误:', err);
     res.status(500).json({ error: '上传头像失败' });
   }
 });
@@ -121,7 +122,7 @@ usersRouter.get('/', async (req, res) => {
     
     res.json(results);
   } catch (err) {
-    console.error('搜索用户错误:', err);
+    logger.error('搜索用户错误:', err);
     res.status(500).json({ error: '搜索用户失败' });
   }
 });
@@ -139,7 +140,7 @@ usersRouter.get('/search', async (req, res) => {
     
     res.json(results);
   } catch (err) {
-    console.error('搜索用户错误:', err);
+    logger.error('搜索用户错误:', err);
     res.status(500).json({ error: '搜索用户失败' });
   }
 });
@@ -156,7 +157,7 @@ usersRouter.post('/:id/xp', authenticateWithUser, async (req, res) => {
     
     res.json({ xp: user.xp, levelInfo: getServices().user.calcLevel(user.xp) });
   } catch (err) {
-    console.error('添加经验值错误:', err);
+    logger.error('添加经验值错误:', err);
     res.status(500).json({ error: '添加经验值失败' });
   }
 });

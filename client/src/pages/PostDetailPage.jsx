@@ -37,7 +37,7 @@ export default function PostDetailPage() {
     const newType = userVote === type ? 'none' : type;
     setUserVote(newType === 'none' ? null : newType);
     const data = await api.post(`/posts/${id}/vote`, { type: newType });
-    setPost(p => ({ ...p, upvotes: Array(data.upvotes).fill(null), downvotes: Array(data.downvotes).fill(null), voteCount: data.upvotes - data.downvotes }));
+    setPost(p => ({ ...p, upvotes: data.upvotes, downvotes: data.downvotes, voteCount: data.voteCount }));
   };
 
   const togglePin = async () => {

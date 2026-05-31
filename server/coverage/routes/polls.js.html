@@ -25,28 +25,28 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/67</span>
+                <span class='fraction'>0/60</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/34</span>
+                <span class='fraction'>0/30</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/7</span>
+                <span class='fraction'>0/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/60</span>
+                <span class='fraction'>0/55</span>
             </div>
         
             
@@ -164,13 +164,8 @@
 <a name='L99'></a><a href='#L99'>99</a>
 <a name='L100'></a><a href='#L100'>100</a>
 <a name='L101'></a><a href='#L101'>101</a>
-<a name='L102'></a><a href='#L102'>102</a>
-<a name='L103'></a><a href='#L103'>103</a>
-<a name='L104'></a><a href='#L104'>104</a>
-<a name='L105'></a><a href='#L105'>105</a>
-<a name='L106'></a><a href='#L106'>106</a>
-<a name='L107'></a><a href='#L107'>107</a>
-<a name='L108'></a><a href='#L108'>108</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L102'></a><a href='#L102'>102</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -197,7 +192,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -261,12 +255,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -281,6 +269,7 @@
 import jwt from 'jsonwebtoken';
 import { getServices } from '../services-registry.js';
 import { getJwtSecret } from '../config/index.js';
+import logger from '../utils/logger.js';
 &nbsp;
 const getUser = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >as</span>ync (req) =&gt; {</span>
   const auth = <span class="cstat-no" title="statement not covered" >req.headers.authorization;</span>
@@ -299,18 +288,17 @@ export const pollsRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >    if (!poll) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Poll not found' });</span></span>
 <span class="cstat-no" title="statement not covered" >    res.json(poll);</span>
   } catch (err) {
-<span class="cstat-no" title="statement not covered" >    console.error('获取投票错误:', err);</span>
+<span class="cstat-no" title="statement not covered" >    logger.error('获取投票错误:', err);</span>
 <span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: '获取投票失败' });</span>
   }
 });
 &nbsp;
 <span class="cstat-no" title="statement not covered" >pollsRouter.get('/post/:postId', <span class="fstat-no" title="function not covered" >as</span>ync (req, res) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
-    const polls = <span class="cstat-no" title="statement not covered" >await getServices().repo.polls();</span>
-    const poll = <span class="cstat-no" title="statement not covered" >polls.find(<span class="fstat-no" title="function not covered" >p </span>=&gt; <span class="cstat-no" title="statement not covered" >p.postId === req.params.postId)</span>;</span>
+    const poll = <span class="cstat-no" title="statement not covered" >await getServices().poll.getPollsForPost(req.params.postId);</span>
 <span class="cstat-no" title="statement not covered" >    res.json(poll || null);</span>
   } catch (err) {
-<span class="cstat-no" title="statement not covered" >    console.error('获取帖子投票错误:', err);</span>
+<span class="cstat-no" title="statement not covered" >    logger.error('获取帖子投票错误:', err);</span>
 <span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: '获取帖子投票失败' });</span>
   }
 });
@@ -319,11 +307,11 @@ export const pollsRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
-    
+&nbsp;
     const { question, options, allowMultiple = <span class="branch-0 cbranch-no" title="branch not covered" >false,</span> endsAt = <span class="branch-0 cbranch-no" title="branch not covered" >null,</span> postId = <span class="branch-0 cbranch-no" title="branch not covered" >null </span>} = <span class="cstat-no" title="statement not covered" >req.body;</span>
 <span class="cstat-no" title="statement not covered" >    if (!question || !Array.isArray(options) || options.length &lt; 2)</span>
 <span class="cstat-no" title="statement not covered" >      return res.status(400).json({ error: 'Question and at least 2 options required' });</span>
-    
+&nbsp;
     const poll = <span class="cstat-no" title="statement not covered" >await getServices().poll.createPoll({</span>
       question,
       options,
@@ -332,16 +320,16 @@ export const pollsRouter = <span class="cstat-no" title="statement not covered" 
       expiresAt: endsAt,
       allowMultiple
     });
-    
+&nbsp;
 <span class="cstat-no" title="statement not covered" >    if (postId) {</span>
 <span class="cstat-no" title="statement not covered" >      await getServices().post.updatePost(postId, { pollId: poll.id });</span>
     }
-    
+&nbsp;
 <span class="cstat-no" title="statement not covered" >    await getServices().user.addXp(user.id, 5);</span>
-    
+&nbsp;
 <span class="cstat-no" title="statement not covered" >    res.json(poll);</span>
   } catch (err) {
-<span class="cstat-no" title="statement not covered" >    console.error('创建投票错误:', err);</span>
+<span class="cstat-no" title="statement not covered" >    logger.error('创建投票错误:', err);</span>
 <span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: '创建投票失败' });</span>
   }
 });
@@ -350,18 +338,18 @@ export const pollsRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
-    
+&nbsp;
     const { optionIds } = <span class="cstat-no" title="statement not covered" >req.body;</span>
 <span class="cstat-no" title="statement not covered" >    if (!Array.isArray(optionIds) || optionIds.length === 0)</span>
 <span class="cstat-no" title="statement not covered" >      return res.status(400).json({ error: 'optionIds required' });</span>
-    
+&nbsp;
     const poll = <span class="cstat-no" title="statement not covered" >await getServices().poll.votePoll(req.params.id, user.id, optionIds);</span>
-    
+&nbsp;
 <span class="cstat-no" title="statement not covered" >    await getServices().user.addXp(user.id, 2);</span>
-    
+&nbsp;
 <span class="cstat-no" title="statement not covered" >    res.json(poll);</span>
   } catch (err) {
-<span class="cstat-no" title="statement not covered" >    console.error('投票错误:', err);</span>
+<span class="cstat-no" title="statement not covered" >    logger.error('投票错误:', err);</span>
 <span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: err.message || '投票失败' });</span>
   }
 });
@@ -370,19 +358,13 @@ export const pollsRouter = <span class="cstat-no" title="statement not covered" 
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const user = <span class="cstat-no" title="statement not covered" >await getUser(req);</span>
 <span class="cstat-no" title="statement not covered" >    if (!user) <span class="cstat-no" title="statement not covered" >return res.status(401).json({ error: 'Unauthorized' });</span></span>
-    
-    const poll = <span class="cstat-no" title="statement not covered" >await getServices().repo.pollById(req.params.id);</span>
-<span class="cstat-no" title="statement not covered" >    if (!poll) <span class="cstat-no" title="statement not covered" >return res.status(404).json({ error: 'Not found' });</span></span>
-    
-<span class="cstat-no" title="statement not covered" >    if (poll.authorId !== user.id &amp;&amp; user.role !== 'admin')</span>
-<span class="cstat-no" title="statement not covered" >      return res.status(403).json({ error: 'Forbidden' });</span>
-    
-<span class="cstat-no" title="statement not covered" >    await getServices().repo.query('DELETE FROM polls WHERE id = $1', [req.params.id]);</span>
-    
+&nbsp;
+<span class="cstat-no" title="statement not covered" >    await getServices().poll.deletePoll(req.params.id, user.id, user.role);</span>
+&nbsp;
 <span class="cstat-no" title="statement not covered" >    res.json({ success: true });</span>
   } catch (err) {
-<span class="cstat-no" title="statement not covered" >    console.error('删除投票错误:', err);</span>
-<span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: '删除投票失败' });</span>
+<span class="cstat-no" title="statement not covered" >    logger.error('删除投票错误:', err);</span>
+<span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: err.message || '删除投票失败' });</span>
   }
 });</pre></td></tr></table></pre>
 
@@ -391,7 +373,7 @@ export const pollsRouter = <span class="cstat-no" title="statement not covered" 
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-30T06:34:28.562Z
+                at 2026-05-31T01:53:01.712Z
             </div>
         <script src="../prettify.js"></script>
         <script>

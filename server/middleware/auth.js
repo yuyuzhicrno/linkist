@@ -51,3 +51,13 @@ export const optionalAuth = async (req, res, next) => {
 };
 
 export const signToken = (userId) => jwt.sign({ userId }, getJwtSecret(), { expiresIn: '7d' });
+
+export const getUser = async (req) => {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return null;
+  try {
+    const { userId } = jwt.verify(auth.slice(7), getJwtSecret());
+    const { getServices } = await import('../services-registry.js');
+    return await getServices().user.getUserById(userId);
+  } catch { return null; }
+};

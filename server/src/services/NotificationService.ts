@@ -1,37 +1,36 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { Repository } from '../repository/index.js';
-import type { Notification } from '../types/index.js';
+import type { Repository } from '../repository';
+import type { Notification } from '../types';
 
 export class NotificationService {
   constructor(private repo: Repository) {}
 
-  async getNotifications(userId: string, options: Record<string, unknown> = {}): Promise<Notification[]> {
-    return await this.repo.notifications(userId, options);
+  async getNotifications(userId: string, options: { page?: number; limit?: number; unreadOnly?: boolean } = {}): Promise<Notification[]> {
+    return await this.repo.notifications(userId, options) as Notification[];
   }
 
   async createNotification(userId: string, type: string, title: string, message: string, data: Record<string, unknown> = {}): Promise<Notification> {
-    const notification: Omit<Notification, 'createdAt'> = {
+    const notification: Omit<Notification, 'createdAt' | 'isRead'> = {
       id: uuidv4(),
       userId,
       type,
       title,
       message,
-      data,
-      isRead: false
+      data
     };
 
-    return await this.repo.createNotification(notification);
+    return await this.repo.createNotification(notification) as Notification;
   }
 
   async markNotificationRead(id: string): Promise<Notification | null> {
-    return await this.repo.markNotificationRead(id);
+    return await this.repo.markNotificationRead(id) as Notification | null;
   }
 
   async markAllNotificationsRead(userId: string): Promise<void> {
     await this.repo.markAllNotificationsRead(userId);
   }
 
-  async createPostNotification(postId: string, authorId: string, actorId: string, actorName: string, type: string): Promise<Notification | undefined> {
+  async createPostNotification(postId: string, authorId: string, actorId: string, actorName: string, type: string): Promise<Notification | void> {
     const author = await this.repo.userById(authorId);
     if (!author || authorId === actorId) return;
 

@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import { createMockRepo, mockRepo } from '../__mocks__/services.js';
-import { FriendService } from '../../services/FriendService.js';
+import { FriendService } from '../../dist/services/FriendService.js';
 
 describe('FriendService', () => {
   let friendService;
@@ -348,7 +348,7 @@ describe('FriendService', () => {
 
       expect(result.content).toBe('Hello!');
       expect(result.authorId).toBe('user-1');
-      expect(mockRepo.data.directMessages[0].messages).toHaveLength(1);
+      expect(mockRepo.data.directMessages[0].messageCount).toBe(1);
     });
 
     it('should throw error if DM does not exist', async () => {
@@ -363,11 +363,11 @@ describe('FriendService', () => {
 
   describe('getDirectMessagesForUser', () => {
     it('should return all DMs for user', async () => {
-      mockRepoInstance.queryAllDirectMessages = jest.fn(async () => [
+      mockRepo.data.directMessages = [
         { id: 'dm-1', participants: ['user-1', 'user-2'] },
         { id: 'dm-2', participants: ['user-1', 'user-3'] },
         { id: 'dm-3', participants: ['user-2', 'user-3'] }
-      ]);
+      ];
 
       const result = await friendService.getDirectMessagesForUser('user-1');
 
@@ -375,8 +375,8 @@ describe('FriendService', () => {
       expect(result.map(d => d.id)).toEqual(['dm-1', 'dm-2']);
     });
 
-    it('should return empty array if queryAllDirectMessages not implemented', async () => {
-      delete mockRepoInstance.queryAllDirectMessages;
+    it('should return empty array if directMessages not implemented', async () => {
+      delete mockRepoInstance.directMessages;
 
       const result = await friendService.getDirectMessagesForUser('user-1');
 

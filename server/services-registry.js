@@ -1,18 +1,22 @@
-import { initDatabase, getRepository } from './data/db.js';
-import { UserService } from './dist/services/UserService.js';
-import { PostService } from './dist/services/PostService.js';
-import { ChannelService } from './dist/services/ChannelService.js';
-import { FriendService } from './dist/services/FriendService.js';
-import { NotificationService } from './dist/services/NotificationService.js';
-import { PollService } from './dist/services/PollService.js';
-import { TagService } from './dist/services/TagService.js';
+import { getRepository } from './data/db.js';
 
 export let services = {};
 
-export async function initServices() {
+export async function initServerServices() {
   const repo = await getRepository();
+  
+  const { UserService } = await import('./dist/services/UserService.js');
+  const { PostService } = await import('./dist/services/PostService.js');
+  const { ChannelService } = await import('./dist/services/ChannelService.js');
+  const { FriendService } = await import('./dist/services/FriendService.js');
+  const { NotificationService } = await import('./dist/services/NotificationService.js');
+  const { PollService } = await import('./dist/services/PollService.js');
+  const { TagService } = await import('./dist/services/TagService.js');
+  const { ColumnService } = await import('./dist/services/ColumnService.js');
+
   const userService = new UserService(repo);
   const postService = new PostService(repo, userService);
+  
   services = {
     repo,
     user: userService,
@@ -21,8 +25,10 @@ export async function initServices() {
     friend: new FriendService(repo),
     notification: new NotificationService(repo),
     poll: new PollService(repo),
-    tag: new TagService(repo)
+    tag: new TagService(repo),
+    column: new ColumnService(repo)
   };
+  
   return services;
 }
 

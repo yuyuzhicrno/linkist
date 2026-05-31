@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { getServices } from '../services-registry.js';
 import { validate, schemas, sanitizeInput } from '../middleware/validation.js';
 import { authenticateWithUser, optionalAuth } from '../middleware/auth.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
+import logger from '../utils/logger.js';
 
 const getAuthor = async (authorId) => {
   const u = await getServices().user.getUserById(authorId);
@@ -13,7 +15,7 @@ const enrichPost = async (post) => ({
   ...post,
   author: await getAuthor(post.authorId),
   voteCount: (post.upvotes?.length || 0) - (post.downvotes?.length || 0),
-  commentCount: (post.comments?.length || 0)
+  commentCount: (post.commentCount || 0)
 });
 
 const enrichComment = async (c) => ({
@@ -52,7 +54,7 @@ postsRouter.get('/', async (req, res) => {
     const enrichedPosts = await Promise.all(posts.map(enrichPost));
     res.json(enrichedPosts);
   } catch (err) {
-    console.error('获取帖子错误:', err);
+    logger.error('获取帖子错误:', err);
     res.status(500).json({ error: '获取帖子失败' });
   }
 });
@@ -69,7 +71,7 @@ postsRouter.get('/:id', async (req, res) => {
 
     res.json(enriched);
   } catch (err) {
-    console.error('获取帖子详情错误:', err);
+    logger.error('获取帖子详情错误:', err);
     res.status(500).json({ error: '获取帖子详情失败' });
   }
 });
@@ -91,7 +93,7 @@ postsRouter.post('/', validate(schemas.createPost), authenticateWithUser, async 
     
     res.json(await enrichPost(post));
   } catch (err) {
-    console.error('创建帖子错误:', err);
+    logger.error('创建帖子错误:', err);
     res.status(500).json({ error: '创建帖子失败' });
   }
 });
@@ -101,17 +103,14 @@ postsRouter.post('/:id/vote', authenticateWithUser, async (req, res) => {
     const { type } = req.body;
     const post = await getServices().post.vote(req.params.id, req.user.id, type);
     
-    const upvotes = post.upvotes?.length || 0;
-    const downvotes = post.downvotes?.length || 0;
-    
     if (type === 'up') {
       await getServices().user.addXp(req.user.id, 1);
       await getServices().notification.createPostNotification(req.params.id, post.authorId, req.user.id, req.user.username, 'upvote');
     }
     
-    res.json({ upvotes, downvotes, voteCount: upvotes - downvotes });
+    res.json({ upvotes: post.upvotes || [], downvotes: post.downvotes || [], voteCount: (post.upvotes?.length || 0) - (post.downvotes?.length || 0) });
   } catch (err) {
-    console.error('投票错误:', err);
+    logger.error('投票错误:', err);
     res.status(500).json({ error: '投票失败' });
   }
 });
@@ -132,7 +131,7 @@ postsRouter.post('/:id/comments', authenticateWithUser, async (req, res) => {
     
     res.json(await enrichComment(comment));
   } catch (err) {
-    console.error('评论错误:', err);
+    logger.error('评论错误:', err);
     res.status(500).json({ error: '评论失败' });
   }
 });
@@ -154,71 +153,71 @@ postsRouter.post('/:id/comments/:commentId/replies', authenticateWithUser, async
 
     res.json({ ...reply, author: { id: req.user.id, username: req.user.username, avatar: req.user.avatar } });
   } catch (err) {
-    console.error('回复错误:', err);
+    logger.error('回复错误:', err);
     res.status(500).json({ error: '回复失败' });
   }
 });
 
 postsRouter.post('/:id/comments/:commentId/vote', authenticateWithUser, async (req, res) => {
   try {
-    const { type } = req.body;
     const comment = await getServices().post.voteComment(req.params.commentId, req.user.id);
     if (!comment) return res.status(404).json({ error: 'Comment not found' });
 
-    if (type === 'up') {
+    if (req.body.type === 'up') {
       await getServices().user.addXp(comment.authorId, 1);
     }
 
-    res.json({ upvotes: comment.upvotes?.length || 0, downvotes: comment.downvotes?.length || 0 });
+    res.json({ upvotes: comment.upvotes?.length || 0, downvotes: 0 });
   } catch (err) {
-    console.error('评论投票错误:', err);
+    logger.error('评论投票错误:', err);
     res.status(500).json({ error: '投票失败' });
   }
 });
 
 postsRouter.put('/:id/comments/:commentId', authenticateWithUser, async (req, res) => {
   try {
-    const post = await getServices().post.getPostById(req.params.id);
-    if (!post) return res.status(404).json({ error: 'Post not found' });
-    
-    const comment = (post.comments || []).find(c => c.id === req.params.commentId);
-    if (!comment) return res.status(404).json({ error: 'Comment not found' });
-    
-    if (comment.authorId !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    
     const { content } = req.body;
-    if (content !== undefined) comment.content = content.trim();
-    comment.updatedAt = new Date().toISOString();
-    
-    await getServices().post.updatePost(req.params.id, { comments: post.comments });
-    
+    if (content === undefined || !content?.trim()) {
+      return res.status(400).json({ error: 'Content required' });
+    }
+
+    const comment = await getServices().post.updateComment(
+      req.params.commentId,
+      req.user.id,
+      req.user.role,
+      content
+    );
+
     res.json(await enrichComment(comment));
   } catch (err) {
-    console.error('更新评论错误:', err);
+    logger.error('更新评论错误:', err);
+    if (err.message === '评论不存在') {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+    if (err.message === '没有权限修改这条评论') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     res.status(500).json({ error: '更新评论失败' });
   }
 });
 
 postsRouter.delete('/:id/comments/:commentId', authenticateWithUser, async (req, res) => {
   try {
-    const post = await getServices().post.getPostById(req.params.id);
-    if (!post) return res.status(404).json({ error: 'Post not found' });
-    
-    const idx = (post.comments || []).findIndex(c => c.id === req.params.commentId);
-    if (idx === -1) return res.status(404).json({ error: 'Comment not found' });
-    
-    if (post.comments[idx].authorId !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
-    
-    post.comments.splice(idx, 1);
-    await getServices().post.updatePost(req.params.id, { comments: post.comments });
-    
+    await getServices().post.deleteComment(
+      req.params.commentId,
+      req.user.id,
+      req.user.role
+    );
+
     res.json({ success: true });
   } catch (err) {
-    console.error('删除评论错误:', err);
+    logger.error('删除评论错误:', err);
+    if (err.message === '评论不存在') {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+    if (err.message === '没有权限删除这条评论') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     res.status(500).json({ error: '删除评论失败' });
   }
 });
@@ -243,7 +242,7 @@ postsRouter.put('/:id', authenticateWithUser, async (req, res) => {
     const updated = await getServices().post.updatePost(req.params.id, updates);
     res.json(await enrichPost(updated));
   } catch (err) {
-    console.error('更新帖子错误:', err);
+    logger.error('更新帖子错误:', err);
     res.status(500).json({ error: '更新帖子失败' });
   }
 });
@@ -260,7 +259,7 @@ postsRouter.delete('/:id', authenticateWithUser, async (req, res) => {
     await getServices().post.deletePost(req.params.id);
     res.json({ success: true });
   } catch (err) {
-    console.error('删除帖子错误:', err);
+    logger.error('删除帖子错误:', err);
     res.status(500).json({ error: '删除帖子失败' });
   }
 });
@@ -273,7 +272,7 @@ postsRouter.patch('/:id/pin', authenticateWithUser, async (req, res) => {
     if (err.message === '没有权限置顶帖子') {
       return res.status(403).json({ error: err.message });
     }
-    console.error('置顶帖子错误:', err);
+    logger.error('置顶帖子错误:', err);
     res.status(500).json({ error: '置顶失败' });
   }
 });

@@ -8,7 +8,7 @@ import rateLimit from 'express-rate-limit';
 import { initDatabase, getRepository } from './data/db.js';
 import { initSocket } from './services/socket.js';
 import { validateConfig, getJwtSecret } from './config/index.js';
-import { initServices } from './services-registry.js';
+import { initServerServices } from './services-registry.js';
 import { authRouter } from './routes/auth.js';
 import { channelsRouter } from './routes/channels.js';
 import { postsRouter } from './routes/posts.js';
@@ -19,6 +19,8 @@ import { friendsRouter } from './routes/friends.js';
 import { tagsRouter } from './routes/tags.js';
 import { pollsRouter } from './routes/polls.js';
 import { notificationsRouter } from './routes/notifications.js';
+import logger from './utils/logger.js';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,7 +30,7 @@ dotenv.config();
 try {
   validateConfig();
 } catch (err) {
-  console.error(err.message);
+  logger.error(err.message);
   process.exit(1);
 }
 
@@ -134,23 +136,20 @@ if (NODE_ENV === 'production') {
 }
 
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
-  res.status(err.status || 500).json({
-    error: NODE_ENV === 'development' ? err.message : 'Internal Server Error'
-  });
+  errorHandler(err, req, res, next);
 });
 
 app.use((req, res) => {
-  res.status(404).json({ error: 'Not Found' });
+  notFoundHandler(req, res);
 });
 
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
+  logger.error('Uncaught Exception:', err);
   process.exit(1);
 });
 
 process.on('unhandledRejection', (err) => {
-  console.error('Unhandled Rejection:', err);
+  logger.error('Unhandled Rejection:', err);
 });
 
 async function startServer() {
@@ -162,7 +161,7 @@ async function startServer() {
     await initDatabase();
     console.log('Database initialized successfully');
 
-    await initServices();
+    await initServerServices();
     console.log('Services initialized successfully');
 
     const server = http.createServer(app);
@@ -176,7 +175,7 @@ async function startServer() {
       console.log(`\n✅ Ready to serve requests`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    logger.error('Failed to start server:', error);
     process.exit(1);
   }
 }

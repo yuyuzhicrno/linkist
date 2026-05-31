@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import { createMockRepo, createMockUserService, mockRepo } from '../__mocks__/services.js';
-import { PostService } from '../../services/PostService.js';
+import { PostService } from '../../dist/services/PostService.js';
 
 describe('PostService', () => {
   let postService;

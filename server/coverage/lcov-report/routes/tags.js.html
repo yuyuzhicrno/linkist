@@ -128,7 +128,9 @@
 <a name='L63'></a><a href='#L63'>63</a>
 <a name='L64'></a><a href='#L64'>64</a>
 <a name='L65'></a><a href='#L65'>65</a>
-<a name='L66'></a><a href='#L66'>66</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -195,6 +197,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Router } from 'express';
 import { getServices } from '../services-registry.js';
+import logger from '../utils/logger.js';
 &nbsp;
 export const tagsRouter = <span class="cstat-no" title="statement not covered" >Router();</span>
 &nbsp;
@@ -202,13 +205,13 @@ export const tagsRouter = <span class="cstat-no" title="statement not covered" >
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const { q, limit = <span class="branch-0 cbranch-no" title="branch not covered" >50 </span>} = <span class="cstat-no" title="statement not covered" >req.query;</span>
     let tags = <span class="cstat-no" title="statement not covered" >await getServices().tag.getAllTags();</span>
-    
+&nbsp;
 <span class="cstat-no" title="statement not covered" >    if (q) <span class="cstat-no" title="statement not covered" >tags = tags.filter(<span class="fstat-no" title="function not covered" >t </span>=&gt; <span class="cstat-no" title="statement not covered" >t.name.toLowerCase().includes(q.toLowerCase()))</span>;</span></span>
 <span class="cstat-no" title="statement not covered" >    tags.sort(<span class="fstat-no" title="function not covered" >(a</span>, b) =&gt; <span class="cstat-no" title="statement not covered" >(b.count || 0) - (a.count || 0))</span>;</span>
-    
+&nbsp;
 <span class="cstat-no" title="statement not covered" >    res.json(tags.slice(0, Number(limit)));</span>
   } catch (err) {
-<span class="cstat-no" title="statement not covered" >    console.error('获取标签错误:', err);</span>
+<span class="cstat-no" title="statement not covered" >    logger.error('获取标签错误:', err);</span>
 <span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: '获取标签失败' });</span>
   }
 });
@@ -216,8 +219,8 @@ export const tagsRouter = <span class="cstat-no" title="statement not covered" >
 <span class="cstat-no" title="statement not covered" >tagsRouter.get('/:tag/content', <span class="fstat-no" title="function not covered" >as</span>ync (req, res) =&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  try {</span>
     const tag = <span class="cstat-no" title="statement not covered" >decodeURIComponent(req.params.tag);</span>
-    const posts = <span class="cstat-no" title="statement not covered" >await getServices().repo.posts({ tag });</span>
-    
+    const posts = <span class="cstat-no" title="statement not covered" >await getServices().tag.getPostsByTag(tag);</span>
+&nbsp;
     const enrichedPosts = <span class="cstat-no" title="statement not covered" >await Promise.all(posts.posts.map(<span class="fstat-no" title="function not covered" >as</span>ync p =&gt; {</span>
       const author = <span class="cstat-no" title="statement not covered" >await getServices().user.getUserById(p.authorId);</span>
 <span class="cstat-no" title="statement not covered" >      return {</span>
@@ -226,13 +229,13 @@ export const tagsRouter = <span class="cstat-no" title="statement not covered" >
         title: p.title,
         author: author ? { id: author.id, username: author.username, avatar: author.avatar } : null,
         voteCount: (p.upvotes?.length || 0) - (p.downvotes?.length || 0),
-        commentCount: (p.comments?.length || 0),
+        commentCount: (p.commentCount || 0),
         createdAt: p.createdAt
       };
     }));
-    
+&nbsp;
+    const columns = <span class="cstat-no" title="statement not covered" >await getServices().tag.getColumns();</span>
     const articles = <span class="cstat-no" title="statement not covered" >[];</span>
-    const columns = <span class="cstat-no" title="statement not covered" >await getServices().repo.columns();</span>
 <span class="cstat-no" title="statement not covered" >    for (const col of columns) {</span>
 <span class="cstat-no" title="statement not covered" >      for (const a of col.articles || []) {</span>
 <span class="cstat-no" title="statement not covered" >        if (a.tags?.includes(tag)) {</span>
@@ -251,11 +254,11 @@ export const tagsRouter = <span class="cstat-no" title="statement not covered" >
         }
       }
     }
-    
+&nbsp;
     const all = <span class="cstat-no" title="statement not covered" >[...enrichedPosts, ...articles].sort(<span class="fstat-no" title="function not covered" >(a</span>, b) =&gt; <span class="cstat-no" title="statement not covered" >new Date(b.createdAt) - new Date(a.createdAt))</span>;</span>
 <span class="cstat-no" title="statement not covered" >    res.json({ tag, total: all.length, items: all });</span>
   } catch (err) {
-<span class="cstat-no" title="statement not covered" >    console.error('获取标签内容错误:', err);</span>
+<span class="cstat-no" title="statement not covered" >    logger.error('获取标签内容错误:', err);</span>
 <span class="cstat-no" title="statement not covered" >    res.status(500).json({ error: '获取标签内容失败' });</span>
   }
 });</pre></td></tr></table></pre>
@@ -265,7 +268,7 @@ export const tagsRouter = <span class="cstat-no" title="statement not covered" >
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-05-30T06:34:28.510Z
+                at 2026-05-31T01:53:01.659Z
             </div>
         <script src="../prettify.js"></script>
         <script>

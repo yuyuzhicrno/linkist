@@ -29,16 +29,12 @@ export default function HomePage() {
       <div className="relative overflow-hidden rounded-3xl mb-8 p-8 bg-gradient-to-br from-[var(--accent)]/20 via-[var(--surface-2)] to-[var(--surface-3)] border border-[var(--border)]">
         <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)]/10 rounded-full -translate-y-32 translate-x-32 blur-3xl" />
         <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--accent)]/15 border border-[var(--accent)]/30 text-[var(--accent)] text-xs font-medium mb-4">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
-            下一代社区平台
-          </div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-[var(--text-primary)] mb-3">
-            欢迎来到 <span style={{ color: 'var(--accent)' }}>Linkist</span>
-          </h1>
-          <p className="text-[var(--text-secondary)] max-w-lg mb-6">
-            融合 Reddit 的讨论精华、Discord 的即时频道与专栏深度创作，一站式打造你的知识社区。
-          </p>
+            <h1 className="text-4xl font-extrabold tracking-tight text-[var(--text-primary)] mb-3">
+              欢迎来到 <span style={{ color: 'var(--accent)' }}>Linkist</span>
+            </h1>
+            <p className="text-[var(--text-secondary)] max-w-lg mb-6">
+              分享想法、讨论话题、加入频道，与社区成员互动。
+            </p>
           <div className="flex flex-wrap gap-3">
             {user ? (
               <>

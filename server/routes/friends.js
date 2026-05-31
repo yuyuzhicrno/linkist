@@ -1,17 +1,7 @@
 import { Router } from 'express';
-import jwt from 'jsonwebtoken';
 import { getServices } from '../services-registry.js';
 import { emitDmToParticipants } from '../services/socket.js';
-import { getJwtSecret } from '../config/index.js';
-
-const getUser = async (req) => {
-  const auth = req.headers.authorization;
-  if (!auth?.startsWith('Bearer ')) return null;
-  try {
-    const { userId } = jwt.verify(auth.slice(7), getJwtSecret());
-    return await getServices().user.getUserById(userId);
-  } catch { return null; }
-};
+import { getUser } from '../middleware/auth.js';
 
 const safeUser = (user) => {
   if (!user) return null;

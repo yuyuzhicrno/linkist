@@ -34,9 +34,8 @@ export class ChannelService {
     return await this.repo.createChannel(channel);
   }
 
-  async getChannels(options: Record<string, unknown> = {}): Promise<Channel[]> {
-    const result = await this.repo.channels(options);
-    return Array.isArray(result) ? result : (result as Record<string, Channel[]>).channels || [];
+  async getChannels(options: { includePrivate?: boolean; userId?: string } = {}): Promise<Channel[]> {
+    return await this.repo.channels(options) as Channel[];
   }
 
   async getChannelById(id: string): Promise<Channel | null> {
@@ -76,21 +75,26 @@ export class ChannelService {
       throw new Error('您不是该频道成员');
     }
 
-    const msg = await this.repo.createChannelMessage({
+    const msg: Omit<ChannelMessage, 'createdAt'> = {
       id: uuidv4(),
       channelId,
       authorId,
       content
-    });
+    };
 
-    return msg;
+    return await this.repo.createChannelMessage(msg);
   }
 
-  async getChannelMessages(channelId: string, options: Record<string, unknown> = {}): Promise<ChannelMessage[]> {
-    return await this.repo.channelMessages(channelId, options);
+  async getChannelMessages(channelId: string, options: { limit?: number; offset?: number } = {}): Promise<ChannelMessage[]> {
+    return await this.repo.channelMessages(channelId, options) as ChannelMessage[];
   }
 
-  async addReaction(channelId: string, messageId: string, emoji: string, userId: string) {
-    return await this.repo.toggleReaction(messageId, 'channel', emoji, userId);
+  async addReaction(channelId: string, messageId: string, emoji: string, userId: string): Promise<Record<string, string[]>> {
+    const reactions = await this.repo.toggleReaction(messageId, 'channel', emoji, userId);
+    const result: Record<string, string[]> = {};
+    for (const r of reactions) {
+      result[r.emoji] = r.userIds;
+    }
+    return result;
   }
 }

@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Repository } from '../repository';
-import type { User, DirectMessage } from '../types';
+import type { User, DirectMessage, DmMessage } from '../types';
 
 export class FriendService {
   constructor(private repo: Repository) {}
@@ -10,10 +10,10 @@ export class FriendService {
       throw new Error('不能向自己发送好友请求');
     }
 
-    const toUser = await this.repo.userById(toId);
+    const toUser = await this.repo.userById(toId) as User | null;
     if (!toUser) throw new Error('用户不存在');
 
-    const fromUser = await this.repo.userById(fromId);
+    const fromUser = await this.repo.userById(fromId) as User | null;
     if (!fromUser) throw new Error('发送者不存在');
 
     const requests = [...(toUser.friendRequests || [])];
@@ -36,7 +36,7 @@ export class FriendService {
   }
 
   async acceptFriendRequest(userId: string, requesterId: string): Promise<boolean> {
-    const user = await this.repo.userById(userId);
+    const user = await this.repo.userById(userId) as User | null;
     if (!user) throw new Error('用户不存在');
 
     const requests = [...(user.friendRequests || [])];
@@ -48,7 +48,7 @@ export class FriendService {
     const friends = [...(user.friends || []), requesterId];
     await this.repo.updateUser(userId, { friendRequests: updatedRequests, friends });
 
-    const requester = await this.repo.userById(requesterId);
+    const requester = await this.repo.userById(requesterId) as User | null;
     if (requester) {
       const requesterFriends = [...(requester.friends || []), userId];
       await this.repo.updateUser(requesterId, { friends: requesterFriends });
@@ -67,7 +67,7 @@ export class FriendService {
   }
 
   async rejectFriendRequest(userId: string, requesterId: string): Promise<boolean> {
-    const user = await this.repo.userById(userId);
+    const user = await this.repo.userById(userId) as User | null;
     if (!user) throw new Error('用户不存在');
 
     const requests = [...(user.friendRequests || [])];
@@ -78,7 +78,7 @@ export class FriendService {
   }
 
   async removeFriend(userId: string, friendId: string): Promise<boolean> {
-    const user = await this.repo.userById(userId);
+    const user = await this.repo.userById(userId) as User | null;
     if (!user) throw new Error('用户不存在');
 
     const friends = [...(user.friends || [])];
@@ -89,7 +89,7 @@ export class FriendService {
     const updatedFriends = friends.filter(id => id !== friendId);
     await this.repo.updateUser(userId, { friends: updatedFriends });
 
-    const friend = await this.repo.userById(friendId);
+    const friend = await this.repo.userById(friendId) as User | null;
     if (friend) {
       const friendFriends = [...(friend.friends || [])].filter(id => id !== userId);
       await this.repo.updateUser(friendId, { friends: friendFriends });
@@ -99,13 +99,13 @@ export class FriendService {
   }
 
   async getFriends(userId: string): Promise<User[]> {
-    const user = await this.repo.userById(userId);
+    const user = await this.repo.userById(userId) as User | null;
     if (!user) throw new Error('用户不存在');
 
     const friendIds = user.friends || [];
     const friends: User[] = [];
     for (const id of friendIds) {
-      const friend = await this.repo.userById(id);
+      const friend = await this.repo.userById(id) as User | null;
       if (friend) friends.push(friend);
     }
 
@@ -113,13 +113,13 @@ export class FriendService {
   }
 
   async getFriendRequests(userId: string): Promise<User[]> {
-    const user = await this.repo.userById(userId);
+    const user = await this.repo.userById(userId) as User | null;
     if (!user) throw new Error('用户不存在');
 
     const requestIds = user.friendRequests || [];
     const requests: User[] = [];
     for (const id of requestIds) {
-      const requester = await this.repo.userById(id);
+      const requester = await this.repo.userById(id) as User | null;
       if (requester) requests.push(requester);
     }
 
@@ -129,49 +129,53 @@ export class FriendService {
   async createDirectMessage(participantIds: string[]): Promise<DirectMessage> {
     const existing = await this.repo.directMessages(participantIds);
     if (existing.length > 0) {
-      return existing[0];
+      return existing[0] as DirectMessage;
     }
 
     const dm: DirectMessage = {
       id: uuidv4(),
-      participants: participantIds,
-      messages: []
+      participants: participantIds
     };
 
-    return await this.repo.createDirectMessage(dm);
+    return await this.repo.createDirectMessage(dm) as DirectMessage;
   }
 
   async getDirectMessage(participantIds: string[]): Promise<DirectMessage | null> {
     const dms = await this.repo.directMessages(participantIds);
-    return dms[0] || null;
+    return (dms[0] as DirectMessage) || null;
   }
 
   async getDirectMessageById(id: string): Promise<DirectMessage | null> {
-    return await this.repo.directMessageById(id);
+    return await this.repo.directMessageById(id) as DirectMessage | null;
   }
 
-  async sendDirectMessage(dmId: string, { content, authorId }: { content: string; authorId: string }) {
-    const dm = await this.repo.directMessageById(dmId);
+  async sendDirectMessage(dmId: string, { content, authorId }: { content: string; authorId: string }): Promise<DmMessage> {
+    const dm = await this.repo.directMessageById(dmId) as DirectMessage | null;
     if (!dm) throw new Error('对话不存在');
 
-    const msg = {
+    const msg: Omit<DmMessage, 'createdAt'> = {
       id: uuidv4(),
+      dmId,
       authorId,
       content,
-      createdAt: new Date().toISOString(),
       reactions: {}
     };
 
-    const messages = [...(dm.messages || []), msg];
-    await this.repo.updateDirectMessage(dmId, { messages });
+    const savedMsg = await this.repo.createDmMessage(msg) as DmMessage;
+    
+    const dmMessages = await this.repo.dmMessages(dmId);
+    const messageCount = dmMessages.length;
+    await this.repo.updateDirectMessage(dmId, { messageCount });
 
-    return msg;
+    return savedMsg;
   }
 
   async getDirectMessagesForUser(userId: string): Promise<DirectMessage[]> {
-    const allDms = await this.repo.queryAllDirectMessages?.();
+    if (typeof this.repo.directMessages !== 'function') return [];
+    
+    const allDms = await this.repo.directMessages();
     if (!allDms) return [];
     
-    return allDms.filter(dm => dm.participants?.includes(userId));
+    return (allDms as DirectMessage[]).filter(dm => dm.participants?.includes(userId));
   }
 }

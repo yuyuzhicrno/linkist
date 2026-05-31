@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import { createMockRepo, mockRepo } from '../__mocks__/services.js';
-import { ChannelService } from '../../services/ChannelService.js';
+import { ChannelService } from '../../dist/services/ChannelService.js';
 
 describe('ChannelService', () => {
   let channelService;
@@ -244,7 +244,7 @@ describe('ChannelService', () => {
 
   describe('addReaction', () => {
     it('should delegate to repo toggleReaction', async () => {
-      mockRepoInstance.toggleReaction.mockResolvedValue({});
+      mockRepoInstance.toggleReaction.mockResolvedValue([{ emoji: '👍', userIds: ['user-1'] }]);
 
       await channelService.addReaction('channel-1', 'msg-1', '👍', 'user-1');
 

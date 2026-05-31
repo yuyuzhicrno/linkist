@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getServices } from '../services-registry.js';
+import logger from '../utils/logger.js';
 
 export const tagsRouter = Router();
 
@@ -7,13 +8,13 @@ tagsRouter.get('/', async (req, res) => {
   try {
     const { q, limit = 50 } = req.query;
     let tags = await getServices().tag.getAllTags();
-    
+
     if (q) tags = tags.filter(t => t.name.toLowerCase().includes(q.toLowerCase()));
     tags.sort((a, b) => (b.count || 0) - (a.count || 0));
-    
+
     res.json(tags.slice(0, Number(limit)));
   } catch (err) {
-    console.error('获取标签错误:', err);
+    logger.error('获取标签错误:', err);
     res.status(500).json({ error: '获取标签失败' });
   }
 });
@@ -21,8 +22,8 @@ tagsRouter.get('/', async (req, res) => {
 tagsRouter.get('/:tag/content', async (req, res) => {
   try {
     const tag = decodeURIComponent(req.params.tag);
-    const posts = await getServices().repo.posts({ tag });
-    
+    const posts = await getServices().tag.getPostsByTag(tag);
+
     const enrichedPosts = await Promise.all(posts.posts.map(async p => {
       const author = await getServices().user.getUserById(p.authorId);
       return {
@@ -31,13 +32,13 @@ tagsRouter.get('/:tag/content', async (req, res) => {
         title: p.title,
         author: author ? { id: author.id, username: author.username, avatar: author.avatar } : null,
         voteCount: (p.upvotes?.length || 0) - (p.downvotes?.length || 0),
-        commentCount: (p.comments?.length || 0),
+        commentCount: (p.commentCount || 0),
         createdAt: p.createdAt
       };
     }));
-    
+
+    const columns = await getServices().column.getColumns();
     const articles = [];
-    const columns = await getServices().repo.columns();
     for (const col of columns) {
       for (const a of col.articles || []) {
         if (a.tags?.includes(tag)) {
@@ -56,11 +57,11 @@ tagsRouter.get('/:tag/content', async (req, res) => {
         }
       }
     }
-    
+
     const all = [...enrichedPosts, ...articles].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     res.json({ tag, total: all.length, items: all });
   } catch (err) {
-    console.error('获取标签内容错误:', err);
+    logger.error('获取标签内容错误:', err);
     res.status(500).json({ error: '获取标签内容失败' });
   }
 });

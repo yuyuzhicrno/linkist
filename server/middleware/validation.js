@@ -147,7 +147,7 @@ export const schemas = {
   }),
 
   votePoll: z.object({
-    optionId: z.string().uuid('选项ID格式不正确')
+    optionIds: z.array(z.string()).min(1, '至少选择一个选项')
   }),
 
   pagination: z.object({

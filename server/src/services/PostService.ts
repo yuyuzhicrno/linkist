@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Repository } from '../repository';
-import type { Post, Comment, Reply } from '../types';
+import type { Post, Comment, Reply, CommentWithReplies } from '../types';
 import type { UserService } from './UserService';
 
 export class PostService {
@@ -37,7 +37,11 @@ export class PostService {
   }
 
   async getPosts(options: { page?: number; limit?: number; authorId?: string; channelId?: string; tag?: string } = {}): Promise<{ posts: Post[]; total: number; page: number; limit: number }> {
-    return await this.repo.posts(options);
+    const result = await this.repo.posts(options);
+    if (Array.isArray(result)) {
+      return { posts: result as Post[], total: result.length, page: 1, limit: result.length };
+    }
+    return { ...result as { posts: Post[]; total: number }, page: result.page || 1, limit: result.limit || 20 };
   }
 
   async getPostById(id: string): Promise<Post | null> {
@@ -101,12 +105,12 @@ export class PostService {
     return comment;
   }
 
-  async getComments(postId: string): Promise<(Comment & { replies: Reply[] })[]> {
+  async getComments(postId: string): Promise<CommentWithReplies[]> {
     const comments = await this.repo.postComments(postId);
     for (const comment of comments) {
       comment.replies = await this.repo.commentReplies(comment.id);
     }
-    return comments as (Comment & { replies: Reply[] })[];
+    return comments as CommentWithReplies[];
   }
 
   async addReply(commentId: string, authorId: string, content: string): Promise<Reply> {
@@ -119,8 +123,30 @@ export class PostService {
     return reply;
   }
 
-  async voteComment(commentId: string, userId: string, voteType: 'up' | 'down'): Promise<Comment | null> {
+  async voteComment(commentId: string, userId: string): Promise<Comment | null> {
     return await this.repo.commentUpvote(commentId, userId);
+  }
+
+  async updateComment(commentId: string, userId: string, userRole: string, content: string): Promise<Comment> {
+    const comment = await this.repo.commentById(commentId);
+    if (!comment) throw new Error('评论不存在');
+
+    if (comment.authorId !== userId && userRole !== 'admin') {
+      throw new Error('没有权限修改这条评论');
+    }
+
+    return (await this.repo.updateComment(commentId, { content: content.trim() }))!;
+  }
+
+  async deleteComment(commentId: string, userId: string, userRole: string): Promise<boolean> {
+    const comment = await this.repo.commentById(commentId);
+    if (!comment) throw new Error('评论不存在');
+
+    if (comment.authorId !== userId && userRole !== 'admin') {
+      throw new Error('没有权限删除这条评论');
+    }
+
+    return await this.repo.deleteComment(commentId);
   }
 
   async pinPost(postId: string, userId: string): Promise<Post | null> {
