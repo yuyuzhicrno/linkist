@@ -1,210 +1,279 @@
 # Linkist
 
-一个好用的社区平台，支持讨论区、实时频道和专栏创作。
+一个功能丰富的社区平台，支持讨论区、实时频道和专栏创作。
 
-## 技术栈
+---
 
-| 层级 | 技术 |
-|------|------|
-| 前端框架 | React 18 + React Router 6 |
-| 构建工具 | Vite 5 |
-| 样式方案 | Tailwind CSS 3（深色/浅色模式，8 种主题色） |
-| 动画 | Framer Motion |
-| Markdown | react-markdown + remark-gfm |
-| 后端框架 | Express 4 + TypeScript |
-| 认证 | JWT（bcryptjs 密码哈希） |
-| 数据库 | 文件存储（LowDB）+ PostgreSQL 支持 |
-| 实时通信 | Socket.IO |
+## 📖 目录
 
-## 功能特性
+- [功能特性](#功能特性)
+- [技术栈](#技术栈)
+- [项目架构](#项目架构)
+- [快速开始](#快速开始)
+- [开发指南](#开发指南)
+- [API 接口](#api-接口)
+- [文档目录](#文档目录)
+- [许可证](#许可证)
+
+---
+
+## ✨ 功能特性
 
 ### 讨论区（Forum）
-- 帖子发布/编辑/删除，Markdown 正文
-- 分类筛选 + 标签系统 + 全文搜索
-- 点赞/点踩投票
-- 嵌套评论与回复
-- 热门/最新/最高排序
-- 帖子置顶、Flair 标签
+- ✅ 帖子发布/编辑/删除，支持 Markdown 格式
+- ✅ 分类筛选 + 标签系统 + 全文搜索
+- ✅ 点赞/点踩投票机制
+- ✅ 嵌套评论与回复功能
+- ✅ 热门/最新/最高排序
+- ✅ 帖子置顶、Flair 标签
 
 ### 频道（Channels）
-- Discord 风格实时聊天布局
-- 公开/私密频道
-- Emoji 表情反应（👍 ❤️ 😂 🔥 🎉）
-- 频道创建（等级 3+ 解锁）
-- 成员管理
+- ✅ Discord 风格实时聊天布局
+- ✅ 公开/私密频道类型
+- ✅ Emoji 表情反应（👍 ❤️ 😂 🔥 🎉）
+- ✅ 频道创建（等级 3+ 解锁）
+- ✅ 成员管理与权限控制
 
 ### 专栏（Columns）
-- Markdown 长文章创作与预览
-- 自动阅读时长估算（字/300wpm）
-- 关注/取消关注专栏
-- 文章点赞
+- ✅ Markdown 长文章创作与实时预览
+- ✅ 自动阅读时长估算（字/300wpm）
+- ✅ 关注/取消关注专栏
+- ✅ 文章点赞与统计
 
 ### 用户系统
-- 注册/登录（JWT 认证，7 天有效期）
-- 个人主页（帖子/专栏统计）
-- 头像上传（文件存储 + CDN 路径）
-- 主题自定义（深色/浅色、8 种主题色、3 档字号）
-- 等级系统（1-8+ 级，经验值驱动）
+- ✅ 注册/登录（JWT 认证，7 天有效期）
+- ✅ 个人主页（帖子/专栏统计展示）
+- ✅ 头像上传（文件存储 + CDN 路径）
+- ✅ 主题自定义（深色/浅色、8 种主题色、3 档字号）
+- ✅ 等级系统（1-8+ 级，经验值驱动）
 
 ### 社交功能
-- 好友系统（申请/接受/解除）
-- 私信聊天（未读计数） + WebSocket 实时推送
-- 社区统计数据
-- 通知系统（点赞/评论/回复/好友请求实时推送）
+- ✅ 好友系统（申请/接受/解除）
+- ✅ 私信聊天（未读计数）+ WebSocket 实时推送
+- ✅ 社区统计数据
+- ✅ 通知系统（点赞/评论/回复/好友请求实时推送）
 
 ### 投票系统
-- 创建投票（支持单选/多选、截止时间）
-- 投票交互
-- 与帖子关联
+- ✅ 创建投票（支持单选/多选、截止时间）
+- ✅ 投票交互与结果展示
+- ✅ 与帖子关联
 
-### 等级经验值
+---
 
-| 等级 | 名称 | 所需 XP |
-|------|------|---------|
-| 1 | 新人 | 0 |
-| 2 | 初学者 | 100 |
-| 3 | 探索者 | 300 |
-| 4 | 贡献者 | 600 |
-| 5 | 活跃者 | 1000 |
-| 6 | 达人 | 1500 |
-| 7 | 专家 | 1900+ |
-| 8+ | 传播者+ | 更多... |
+## 🛠️ 技术栈
 
-发帖 +10XP，评论 +3XP，创建频道 +20XP，接受好友 +5XP，更多 XP 奖励见代码。
+| 层级 | 技术 | 版本 | 说明 |
+|------|------|------|------|
+| 前端框架 | React | 18 | UI 框架 |
+| 路由 | React Router | 6 | 前端路由管理 |
+| 构建工具 | Vite | 5 | 快速构建工具 |
+| 样式方案 | Tailwind CSS | 3 | CSS 框架（深色/浅色模式） |
+| 动画 | Framer Motion | - | 动画库 |
+| Markdown | react-markdown + remark-gfm | - | Markdown 渲染 |
+| 后端框架 | Express | 4 | Node.js Web 框架 |
+| 语言 | TypeScript | 5 | 类型安全 |
+| 认证 | JWT + bcryptjs | - | 身份认证 |
+| 数据库 | LowDB + PostgreSQL | - | 文件存储 + 关系型数据库 |
+| 实时通信 | Socket.IO | 4 | WebSocket 实时通信 |
 
-## 项目结构
+---
+
+## 🏗️ 项目架构
 
 ```
 linkist/
-├── client/                     # React 前端
+├── client/                    # React 前端应用
 │   ├── src/
-│   │   ├── components/         # 通用组件（Avatar, Button, Card, Input, PollWidget 等）
-│   │   ├── contexts/           # AuthContext, ThemeContext
-│   │   ├── pages/              # 页面组件（HomePage, ForumPage, ChannelsPage, ColumnsPage 等）
-│   │   ├── layouts/            # 布局组件（AppLayout, ChannelLayout, Topbar, MobileNav）
-│   │   ├── utils/              # API 封装, 工具函数
-│   │   ├── styles/             # 全局样式（CSS 变量, 主题系统, Markdown 排版）
-│   │   ├── App.jsx             # 路由定义
-│   │   └── main.jsx            # 入口
-│   ├── vite.config.js          # Vite 配置（端口 5173，API 代理）
-│   └── tailwind.config.js
-├── server/                     # Express 后端
-│   ├── src/                    # TypeScript 源代码
-│   │   ├── services/           # 业务逻辑层（UserService, PostService, ChannelService 等）
-│   │   ├── repository/         # 数据访问层接口
-│   │   ├── types/              # TypeScript 类型定义
-│   │   └── services-registry.ts # 服务注册中心
-│   ├── routes/                 # API 路由（auth, posts, channels, columns, users, friends, polls, tags）
-│   ├── middleware/             # 认证中间件（authenticate, authenticateWithUser, optionalAuth）
-│   ├── data/
-│   │   └── db.js               # 内存数据库 + 种子数据
-│   ├── dist/                   # TypeScript 编译输出
-│   ├── index.js                # 服务入口（端口 3001）
-│   ├── tsconfig.json           # TypeScript 配置
+│   │   ├── components/        # 组件库（UI组件、业务组件）
+│   │   ├── contexts/          # React Context（全局状态管理）
+│   │   ├── pages/             # 页面组件
+│   │   ├── services/          # 前端服务层（Socket.IO等）
+│   │   ├── store/             # 状态管理
+│   │   ├── styles/            # 全局样式与主题
+│   │   ├── utils/             # 工具函数与API封装
+│   │   ├── App.jsx            # 根组件与路由
+│   │   └── main.jsx           # 应用入口
 │   └── package.json
+├── server/                    # Express 后端服务
+│   ├── src/                   # TypeScript 源代码
+│   │   ├── config/            # 配置管理
+│   │   ├── data/              # 数据访问层（Repository模式）
+│   │   ├── middleware/        # 中间件（认证、错误处理、验证）
+│   │   ├── repository/        # Repository接口定义
+│   │   ├── routes/            # API路由定义
+│   │   ├── services/          # 业务逻辑层（Service类）
+│   │   ├── types/             # TypeScript类型定义
+│   │   ├── utils/             # 工具函数
+│   │   ├── index.ts           # 服务入口
+│   │   └── services-registry.ts # 服务注册中心
+│   ├── dist/                  # TypeScript编译输出（生产入口）
+│   └── package.json
+├── docs/                      # 技术文档
+│   ├── architecture.md        # 架构设计文档
+│   ├── api.md                 # API接口文档
+│   ├── services.md            # 服务类详解
+│   ├── repository.md          # 数据访问层详解
+│   ├── frontend.md            # 前端架构文档
+│   └── setup.md               # 部署配置指南
 └── README.md
 ```
 
-## API 端点
+### 架构设计原则
 
-### 认证 `/api/auth`
-- `POST /register` — 注册
-- `POST /login` — 登录（返回 JWT）
-- `GET /me` — 当前用户信息
+1. **分层架构**：前端 → API层 → 服务层 → 数据访问层 → 数据库
+2. **TypeScript 迁移**：源代码在 `src/`，编译后输出到 `dist/`
+3. **依赖注入**：通过 `services-registry` 实现服务解耦
+3. **Repository模式**：统一数据访问接口，支持多数据库实现
+4. **单一职责**：每个服务/组件只负责一个功能领域
 
-### 帖子 `/api/posts`
-- `GET /` — 帖子列表（sort=hot|new|top, category, tag, search）
-- `GET /:id` — 帖子详情（含评论 + 投票）
-- `POST /` — 创建帖子
-- `POST /:id/vote` — 投票（up/down/none）
-- `POST /:id/comments` — 发表评论
-- `POST /:id/comments/:commentId/replies` — 回复评论
-- `POST /:id/comments/:commentId/vote` — 评论投票
-- `DELETE /:id` — 删除帖子
+---
 
-### 频道 `/api/channels`
-- `GET /` — 频道列表
-- `GET /:id` — 频道详情（含消息）
-- `POST /` — 创建频道（等级 3+）
-- `POST /:id/join` — 加入频道
-- `POST /:id/messages` — 发送消息
-- `POST /:id/messages/:msgId/react` — 表情反应
+## 🚀 快速开始
 
-### 专栏 `/api/columns`
-- `GET /` — 专栏列表
-- `GET /:id` — 专栏详情
-- `POST /` — 创建专栏
-- `POST /:id/articles` — 发布文章
-- `POST /:id/articles/:artId/like` — 喜欢文章
-- `POST /:id/follow` — 关注/取关
+### 环境要求
 
-### 用户 `/api/users`
-- `GET /me` — 当前用户资料
-- `GET /:id` — 用户公开资料
-- `PUT /me` — 更新个人资料
-- `POST /me/avatar` — 上传头像
+- Node.js >= 18.0.0
+- npm >= 9.0.0
+- PostgreSQL >= 14（可选，默认使用文件存储）
 
-### 好友 `/api/friends`
-- `GET /` — 好友列表 + 待处理请求
-- `POST /request/:targetId` — 发送好友申请
-- `POST /accept/:requesterId` — 接受申请
-- `DELETE /remove/:otherId` — 解除好友
-- `GET /dms` — 私信列表
-- `GET /dms/:userId` — 私信对话
-- `POST /dms/:userId` — 发送私信
-
-### 投票 `/api/polls`
-- `GET /post/:postId` — 获取帖子投票
-- `POST /` — 创建投票
-- `POST /:id/vote` — 投票
-
-### 通知 `/api/notifications`
-- `GET /` — 获取通知列表
-- `PUT /:id/read` — 标记单条已读
-- `PUT /read-all` — 全部标记已读
-- `DELETE /:id` — 删除通知
-
-### 其他
-- `GET /api/discussion/stats` — 社区统计
-- `GET /api/discussion/categories` — 分类列表
-- `GET /api/tags?q=&limit=` — 标签搜索
-- `GET /api/tags/:tag/content` — 标签内容聚合
-
-## 主题系统
-
-- **模式：** 深色/浅色（CSS 变量，`.dark` 类切换）
-- **主题色：** 紫罗兰、天青、珊瑚、翡翠、琥珀、玫瑰、青柠、橙焰
-- **字号：** 小（14px）/ 中（16px）/ 大（18px）
-- 用户偏好自动同步至服务器
-
-## 环境变量
-
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `PORT` | 3001 | 后端端口 |
-| `JWT_SECRET` | `linkist_dev_secret_2026` | JWT 签名密钥 |
-| `CORS_ORIGIN` | `http://localhost:5173` | 允许的跨域来源 |
-| `BASE_URL` | `http://localhost:3001` | 基础 URL |
-
-## 开发命令
+### 安装步骤
 
 ```bash
-# 后端
+# 1. 克隆项目
+git clone <repository-url>
+cd linkist
+
+# 2. 安装后端依赖
 cd server
 npm install
-npm run build    # 编译 TypeScript
-npm run dev      # 开发模式
-npm test         # 运行测试
-npm run lint     # ESLint 检查
-npm run format   # Prettier 格式化
 
-# 前端
-cd client
+# 3. 安装前端依赖
+cd ../client
 npm install
-npm run dev      # 开发模式
-npm run build    # 生产构建
+
+# 4. 配置环境变量（可选）
+# 复制 .env.example 为 .env 并修改配置
 ```
 
-## License
+### 运行项目
 
-MIT
+```bash
+# 启动后端服务（开发模式）
+cd server
+npm run dev
+
+# 启动前端开发服务器
+cd client
+npm run dev
+
+# 访问应用
+# 前端: http://localhost:5173
+# 后端API: http://localhost:3001
+```
+
+### 生产构建
+
+```bash
+# 后端编译 TypeScript（输出到 dist/）
+cd server
+npm run build
+
+# 后端启动（使用 dist/index.js）
+npm start
+
+# 前端构建
+cd client
+npm run build
+```
+
+**注意**：生产环境入口是 `dist/index.js`，不是根目录的 `index.js`。
+
+---
+
+## 📚 开发指南
+
+### 后端开发
+
+```bash
+# 编译 TypeScript
+npm run build
+
+# 开发模式（监听文件变化）
+npm run dev
+
+# 运行测试
+npm test
+
+# ESLint 检查
+npm run lint
+
+# Prettier 格式化
+npm run format
+```
+
+### 前端开发
+
+```bash
+# 开发模式
+npm run dev
+
+# 生产构建
+npm run build
+
+# 运行测试
+npm run test
+
+# ESLint 检查
+npm run lint
+```
+
+---
+
+## 🔌 API 接口
+
+### 认证 `/api/auth`
+| 方法 | 路径 | 说明 | 认证 |
+|------|------|------|------|
+| POST | `/register` | 用户注册 | 否 |
+| POST | `/login` | 用户登录（返回 JWT） | 否 |
+| GET | `/me` | 获取当前用户信息 | 是 |
+
+### 帖子 `/api/posts`
+| 方法 | 路径 | 说明 | 认证 |
+|------|------|------|------|
+| GET | `/` | 帖子列表（支持排序、筛选、搜索） | 否 |
+| GET | `/:id` | 帖子详情（含评论+投票） | 否 |
+| POST | `/` | 创建帖子 | 是 |
+| POST | `/:id/vote` | 帖子投票（up/down/none） | 是 |
+| POST | `/:id/comments` | 发表评论 | 是 |
+| POST | `/:id/comments/:commentId/replies` | 回复评论 | 是 |
+| DELETE | `/:id` | 删除帖子 | 是 |
+
+### 完整 API 文档
+
+请查看 [docs/api.md](docs/api.md) 获取详细的 API 说明。
+
+---
+
+## 📁 文档目录
+
+| 文档 | 说明 |
+|------|------|
+| [docs/architecture.md](docs/architecture.md) | 系统架构设计与技术选型 |
+| [docs/api.md](docs/api.md) | 完整 API 接口文档 |
+| [docs/services.md](docs/services.md) | 服务类详解（每个类的功能、方法、职责） |
+| [docs/repository.md](docs/repository.md) | 数据访问层详解 |
+| [docs/frontend.md](docs/frontend.md) | 前端架构与组件设计 |
+| [docs/setup.md](docs/setup.md) | 部署配置与环境变量说明 |
+
+---
+
+## 📄 许可证
+
+MIT License
+
+---
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！

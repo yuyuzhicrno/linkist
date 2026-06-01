@@ -10,9 +10,9 @@ process.env.JWT_SECRET = 'test_secret_for_testing_only';
 process.env.DB_TYPE = 'file';
 process.env.SEED_PASSWORD = 'test_password';
 
-import { initDatabase } from '../../data/db.js';
-import { initServerServices } from '../../services-registry.js';
-import { authRouter } from '../../routes/auth.js';
+import { initDatabase } from '../../src/data/db';
+import { initServices } from '../../src/services-registry';
+import { authRouter } from '../../src/routes/auth';
 
 const app = express();
 app.use(cors());
@@ -23,7 +23,7 @@ let db;
 
 beforeAll(async () => {
   db = await initDatabase();
-  await initServerServices();
+  await initServices();
 });
 
 describe('Auth API', () => {

@@ -1,13 +1,13 @@
-import { initDatabase, getRepository } from './data/db.js';
-import type { Repository } from './repository/index.js';
-import { UserService } from './services/UserService.js';
-import { PostService } from './services/PostService.js';
-import { ChannelService } from './services/ChannelService.js';
-import { FriendService } from './services/FriendService.js';
-import { NotificationService } from './services/NotificationService.js';
-import { PollService } from './services/PollService.js';
-import { TagService } from './services/TagService.js';
-import { ColumnService } from './services/ColumnService.js';
+import { initDatabase, getRepository } from './data/db';
+import type { Repository } from './repository/index';
+import { UserService } from './services/UserService';
+import { PostService } from './services/PostService';
+import { ChannelService } from './services/ChannelService';
+import { FriendService } from './services/FriendService';
+import { NotificationService } from './services/NotificationService';
+import { PollService } from './services/PollService';
+import { TagService } from './services/TagService';
+import { ColumnService } from './services/ColumnService';
 
 export interface Services {
   repo: Repository;

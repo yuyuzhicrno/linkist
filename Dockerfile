@@ -17,6 +17,9 @@ RUN npm ci --production
 # Copy source code
 COPY server/ ./
 
+# Build TypeScript
+RUN npm run build
+
 # Copy built frontend
 COPY --from=frontend /app/client/dist ./client/dist
 
@@ -25,4 +28,4 @@ RUN mkdir -p ./data
 
 EXPOSE 3001
 ENV NODE_ENV=production
-CMD ["node", "index.js"]
+CMD ["node", "dist/index.js"]

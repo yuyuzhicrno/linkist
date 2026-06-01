@@ -1,19 +1,23 @@
 export default {
   testEnvironment: 'node',
-  moduleFileExtensions: ['js', 'mjs'],
+  extensionsToTreatAsEsm: ['.ts'],
+  moduleFileExtensions: ['js', 'mjs', 'ts'],
   transform: {
     '^.+\\.[jt]sx?$': 'babel-jest'
   },
   moduleNameMapper: {
     '^lowdb$': '<rootDir>/__tests__/__mocks__/lowdb.js',
-    '^lowdb/node$': '<rootDir>/__tests__/__mocks__/lowdb-node.js'
+    '^lowdb/node$': '<rootDir>/__tests__/__mocks__/lowdb-node.js',
+    '^(\\.{1,3}/src/config/index)$': '<rootDir>/src/config/index.ts',
+    '^(\\.{1,3}/src/middleware/validation)$': '<rootDir>/src/middleware/validation.js',
+    '^(\\.{1,3}/src/data/db)$': '<rootDir>/src/data/db.js',
+    '^(\\.{1,3}/src/services-registry)$': '<rootDir>/src/services-registry.ts',
+    '^(\\.{1,3}/src/routes/auth)$': '<rootDir>/src/routes/auth.js'
   },
   testMatch: ['**/__tests__/**/*.test.js'],
   collectCoverageFrom: [
-    'routes/**/*.js',
-    'services/**/*.js',
-    'middleware/**/*.js',
-    'config/**/*.js',
+    'src/**/*.js',
+    'src/**/*.ts',
     '!**/node_modules/**'
   ],
   coverageDirectory: 'coverage',

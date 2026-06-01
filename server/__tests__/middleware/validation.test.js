@@ -1,4 +1,4 @@
-import { schemas, sanitizeInput, sanitizeObject } from '../../middleware/validation.js';
+import { schemas, sanitizeInput, sanitizeObject } from '../../src/middleware/validation';
 
 describe('Validation Schemas', () => {
   describe('register schema', () => {

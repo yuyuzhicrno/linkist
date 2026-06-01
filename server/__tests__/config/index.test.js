@@ -1,4 +1,4 @@
-import { validateConfig, generateSecureSecret, getJwtSecret } from '../../config/index.js';
+import { validateConfig, generateSecureSecret, getJwtSecret } from '../../src/config/index';
 
 describe('Config Validation', () => {
   const originalEnv = process.env;
