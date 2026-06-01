@@ -22,6 +22,7 @@ server/__tests__/__mocks__/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+server/logs/
 
 # IDE
 .vscode/
@@ -37,3 +38,13 @@ Thumbs.db
 # Docker
 .dockerignore
 docker-compose.override.yml
+
+# Workbuddy (AI workspace memory)
+.workbuddy/
+
+# Quality reports
+code-quality-report*.md
+
+# Uploads (except .gitkeep)
+server/uploads/avatars/*
+!server/uploads/avatars/.gitkeep
