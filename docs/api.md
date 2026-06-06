@@ -374,6 +374,95 @@ Authorization: Bearer <token>
 }
 ```
 
+### 2.9 评论投票
+
+**路径**：`POST /api/posts/:id/comments/:commentId/vote`
+
+**认证**：需要
+
+**请求体**：
+```json
+{
+  "type": "up" | "down"    // 投票类型（必填）
+}
+```
+
+**成功响应**（200）：
+```json
+{
+  "upvotes": 5,
+  "downvotes": 2
+}
+```
+
+**错误响应**（400）：
+```json
+{
+  "error": "Invalid vote type. Must be \"up\" or \"down\""
+}
+```
+
+**错误响应**（404）：
+```json
+{
+  "error": "Comment not found"
+}
+```
+
+### 2.10 更新评论
+
+**路径**：`PUT /api/posts/:id/comments/:commentId`
+
+**认证**：需要（仅作者或管理员）
+
+**请求体**：
+```json
+{
+  "content": "string"       // 评论内容（必填）
+}
+```
+
+**成功响应**（200）：
+```json
+{
+  "id": "string",
+  "postId": "string",
+  "authorId": "string",
+  "content": "string",
+  "upvotes": ["userId1", "userId2"],
+  "downvotes": [],
+  "replies": [],
+  "createdAt": "2024-01-01T00:00:00.000Z"
+}
+```
+
+### 2.11 删除评论
+
+**路径**：`DELETE /api/posts/:id/comments/:commentId`
+
+**认证**：需要（仅作者或管理员）
+
+**成功响应**（200）：
+```json
+{
+  "success": true
+}
+```
+
+### 2.12 置顶帖子
+
+**路径**：`PATCH /api/posts/:id/pin`
+
+**认证**：需要
+
+**成功响应**（200）：
+```json
+{
+  "success": true,
+  "isPinned": true
+}
+```
+
 ---
 
 ## 3. 频道接口
