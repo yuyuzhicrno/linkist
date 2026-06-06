@@ -8,6 +8,7 @@ import { NotificationService } from './services/NotificationService';
 import { PollService } from './services/PollService';
 import { TagService } from './services/TagService';
 import { ColumnService } from './services/ColumnService';
+import { DebateService } from './services/DebateService';
 
 export interface Services {
   repo: Repository;
@@ -19,6 +20,7 @@ export interface Services {
   poll: PollService;
   tag: TagService;
   column: ColumnService;
+  debate: DebateService;
 }
 
 export let services: Services = {} as Services;
@@ -37,7 +39,8 @@ export async function initServices() {
     notification: new NotificationService(repo),
     poll: new PollService(repo),
     tag: new TagService(repo),
-    column: new ColumnService(repo)
+    column: new ColumnService(repo),
+    debate: new DebateService(repo)
   };
   return services;
 }

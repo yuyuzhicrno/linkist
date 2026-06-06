@@ -88,7 +88,7 @@ export class UserService {
     }
   }
 
-  async getAllUsers(options: Record<string, unknown> = {}): Promise<User[]> {
+  async getAllUsers(_options: Record<string, unknown> = {}): Promise<User[]> {
     return await this.repo.users() as User[];
   }
 

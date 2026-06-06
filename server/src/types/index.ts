@@ -97,6 +97,39 @@ export interface PollOption {
   votes: string[];
 }
 
+export interface Debate {
+  id: string;
+  proposition: string;
+  authorId: string;
+  postId?: string;
+  createdAt: string;
+  expiresAt: string;
+  status: 'ongoing' | 'resolved';
+  winner?: 'pro' | 'con';
+  proVotes: number;
+  conVotes: number;
+}
+
+export interface DebateArgument {
+  id: string;
+  debateId: string;
+  authorId: string;
+  side: 'pro' | 'con';
+  content: string;
+  replyToId?: string;
+  createdAt: string;
+  upvotes: string[];
+  downvotes: string[];
+}
+
+export interface DebateVote {
+  id: string;
+  debateId: string;
+  userId: string;
+  side: 'pro' | 'con';
+  createdAt: string;
+}
+
 export interface Comment {
   id: string;
   postId: string;

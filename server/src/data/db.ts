@@ -1,21 +1,23 @@
 import { Low } from 'lowdb';
 import { JSONFile } from 'lowdb/node';
 import bcrypt from 'bcryptjs';
-import { createRepository } from './repository.js';
+import { createRepository, DbData } from './repository';
+import type { Repository } from '../repository/index';
 
 const DB_TYPE = process.env.DB_TYPE || 'file';
 const DB_PATH = process.env.DB_PATH || './data/db.json';
 const DATABASE_URL = process.env.DATABASE_URL;
 const SEED_PASSWORD = process.env.SEED_PASSWORD || '123456';
 
-let repository = null;
+let repository: Repository | null = null;
 
-export async function initDatabase() {
+export async function initDatabase(): Promise<Repository> {
   if (DB_TYPE === 'postgres') {
-    repository = await createRepository('postgres', DATABASE_URL);
-    await repository.init();
+    const repo = await createRepository('postgres', DATABASE_URL);
+    await repo.init();
+    repository = repo;
   } else {
-    const defaultData = {
+    const defaultData: DbData = {
       users: [],
       posts: [],
       channels: [],
@@ -23,26 +25,38 @@ export async function initDatabase() {
       columns: [],
       tags: [],
       polls: [],
-      notifications: []
+      debates: [],
+      debate_arguments: [],
+      debate_votes: [],
+      notifications: [],
+      post_comments: [],
+      comment_replies: [],
+      channel_messages: [],
+      dm_messages: [],
+      user_channel_reads: [],
+      message_reactions: [],
+      column_articles: [],
+      column_posts: []
     };
-    
-    const adapter = new JSONFile(DB_PATH);
-    const lowdb = new Low(adapter, defaultData);
+
+    const adapter = new JSONFile<DbData>(DB_PATH);
+    const lowdb = new Low<DbData>(adapter, defaultData);
     await lowdb.read();
-    
+
     await seedData(lowdb);
     await lowdb.write();
-    
+
     repository = await createRepository('file', null, lowdb);
   }
-  
+
+  if (!repository) throw new Error('Repository initialization failed');
   return repository;
 }
 
-export async function seedData(lowdb) {
+export async function seedData(lowdb: Low<DbData>): Promise<void> {
   if (lowdb.data.users.length === 0) {
     const passwordHash = bcrypt.hashSync(SEED_PASSWORD, 10);
-    
+
     lowdb.data.users.push({
       id: 'admin-1',
       username: 'admin',
@@ -91,7 +105,7 @@ export async function seedData(lowdb) {
       isPublic: true,
       ownerId: 'admin-1',
       memberIds: ['admin-1', 'user-1'],
-      messages: [],
+      messageCount: 0,
       createdAt: new Date().toISOString()
     });
 
@@ -105,7 +119,7 @@ export async function seedData(lowdb) {
       isPublic: true,
       ownerId: 'admin-1',
       memberIds: ['admin-1'],
-      messages: [],
+      messageCount: 0,
       createdAt: new Date().toISOString()
     });
   }
@@ -122,7 +136,7 @@ export async function seedData(lowdb) {
       upvotes: ['user-1'],
       downvotes: [],
       views: 42,
-      comments: [],
+      commentCount: 0,
       isPinned: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -139,7 +153,7 @@ export async function seedData(lowdb) {
       upvotes: [],
       downvotes: [],
       views: 23,
-      comments: [],
+      commentCount: 0,
       isPinned: false,
       createdAt: new Date(Date.now() - 86400000).toISOString(),
       updatedAt: new Date(Date.now() - 86400000).toISOString()
@@ -147,7 +161,7 @@ export async function seedData(lowdb) {
   }
 }
 
-export function getRepository() {
+export function getRepository(): Repository | null {
   return repository;
 }
 

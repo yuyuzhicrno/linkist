@@ -89,7 +89,7 @@ export class ChannelService {
     return await this.repo.channelMessages(channelId, options) as ChannelMessage[];
   }
 
-  async addReaction(channelId: string, messageId: string, emoji: string, userId: string): Promise<Record<string, string[]>> {
+  async addReaction(_channelId: string, messageId: string, emoji: string, userId: string): Promise<Record<string, string[]>> {
     const reactions = await this.repo.toggleReaction(messageId, 'channel', emoji, userId);
     const result: Record<string, string[]> = {};
     for (const r of reactions) {

@@ -16,8 +16,8 @@
     "declaration": false,
     "sourceMap": true,
     "allowSyntheticDefaultImports": true,
-    "noImplicitAny": false,
-    "allowJs": true,
+    "noImplicitAny": true,
+    "allowJs": false,
     "checkJs": false
   },
   "include": ["src/**/*"],

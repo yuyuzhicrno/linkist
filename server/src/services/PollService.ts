@@ -1,12 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
 import type { Repository } from '../repository';
-import type { Poll } from '../types';
+import type { Poll, User } from '../types';
 
 interface PollOption {
   id: string;
   text: string;
   votes: string[];
 }
+
+const MIN_LEVEL_FOR_POLL = 3;
 
 export class PollService {
   constructor(private repo: Repository) {}
@@ -19,6 +21,16 @@ export class PollService {
     expiresAt?: string;
     allowMultiple?: boolean;
   }): Promise<Poll> {
+    const user = await this.repo.userById(authorId) as User | null;
+    if (!user) {
+      throw new Error('用户不存在');
+    }
+
+    const level = this.calcLevel(user.xp || 0);
+    if (level.level < MIN_LEVEL_FOR_POLL) {
+      throw new Error(`需要达到 ${MIN_LEVEL_FOR_POLL} 级才能发起投票帖，当前等级：${level.level}`);
+    }
+
     const poll: Omit<Poll, 'createdAt' | 'totalVotes'> = {
       id: uuidv4(),
       question,
@@ -30,6 +42,17 @@ export class PollService {
     };
 
     return await this.repo.createPoll(poll) as Poll;
+  }
+
+  private calcLevel(xp: number): { level: number; xp: number; nextLevelXp: number } {
+    if (xp < 100) return { level: 1, xp, nextLevelXp: 100 };
+    if (xp < 300) return { level: 2, xp: xp - 100, nextLevelXp: 200 };
+    if (xp < 600) return { level: 3, xp: xp - 300, nextLevelXp: 300 };
+    if (xp < 1000) return { level: 4, xp: xp - 600, nextLevelXp: 400 };
+    if (xp < 1500) return { level: 5, xp: xp - 1000, nextLevelXp: 500 };
+    const level = Math.floor((Math.sqrt(2 * xp / 100) + 1));
+    const needed = level > 5 ? 400 + (level - 4) * 100 : [100, 200, 300, 400, 500][Math.min(level - 1, 4)];
+    return { level, xp: xp - (level > 5 ? 1100 + (level - 5) * 400 + (level - 5) * (level - 6) * 100 : 0), nextLevelXp: needed };
   }
 
   async votePoll(pollId: string, userId: string, optionIds: string[]): Promise<Poll> {

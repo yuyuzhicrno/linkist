@@ -123,8 +123,12 @@ export class PostService {
     return reply;
   }
 
-  async voteComment(commentId: string, userId: string): Promise<Comment | null> {
-    return await this.repo.commentUpvote(commentId, userId);
+  async voteComment(commentId: string, userId: string, voteType: 'up' | 'down'): Promise<Comment | null> {
+    if (voteType === 'up') {
+      return await this.repo.commentUpvote(commentId, userId);
+    } else {
+      return await this.repo.commentDownvote(commentId, userId);
+    }
   }
 
   async updateComment(commentId: string, userId: string, userRole: string, content: string): Promise<Comment> {

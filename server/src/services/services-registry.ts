@@ -7,6 +7,7 @@ import { NotificationService } from './NotificationService';
 import { PollService } from './PollService';
 import { TagService } from './TagService';
 import { ColumnService } from './ColumnService';
+import { DebateService } from './DebateService';
 
 export interface Services {
   repo: Repository;
@@ -18,19 +19,14 @@ export interface Services {
   poll: PollService;
   tag: TagService;
   column: ColumnService;
+  debate: DebateService;
 }
 
-export let services: Services = {
-  repo: null as unknown as Repository,
-  user: null as unknown as UserService,
-  post: null as unknown as PostService,
-  channel: null as unknown as ChannelService,
-  friend: null as unknown as FriendService,
-  notification: null as unknown as NotificationService,
-  poll: null as unknown as PollService,
-  tag: null as unknown as TagService,
-  column: null as unknown as ColumnService
-};
+// Initial placeholder - will be replaced by initServices
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const PLACEHOLDER_SERVICES: Services = null as any;
+
+export let services: Services = PLACEHOLDER_SERVICES;
 
 export async function initServices(repo: Repository): Promise<Services> {
   const userService = new UserService(repo);
@@ -45,7 +41,8 @@ export async function initServices(repo: Repository): Promise<Services> {
     notification: new NotificationService(repo),
     poll: new PollService(repo),
     tag: new TagService(repo),
-    column: new ColumnService(repo)
+    column: new ColumnService(repo),
+    debate: new DebateService(repo)
   };
   
   return services;

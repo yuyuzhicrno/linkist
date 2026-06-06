@@ -1,7 +1,10 @@
 import { z } from 'zod';
+import { Request, Response, NextFunction } from 'express';
 
-export function validate(schema, source = 'body') {
-  return (req, res, next) => {
+type SchemaSource = 'body' | 'query' | 'params';
+
+export function validate(schema: z.ZodSchema, source: SchemaSource = 'body') {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const data = req[source];
     try {
       const result = schema.parse(data);
@@ -13,9 +16,9 @@ export function validate(schema, source = 'body') {
           field: e.path.join('.'),
           message: e.message
         }));
-        res.status(400).json({ 
-          error: '输入验证失败', 
-          details: errors 
+        res.status(400).json({
+          error: '输入验证失败',
+          details: errors
         });
       } else {
         next(err);
@@ -112,7 +115,7 @@ export const schemas = {
   }),
 
   vote: z.object({
-    type: z.enum(['up', 'down'], '投票类型只能是 up 或 down')
+    type: z.enum(['up', 'down'], { message: '投票类型只能是 up 或 down' })
   }),
 
   friendRequest: z.object({
@@ -156,7 +159,7 @@ export const schemas = {
   })
 };
 
-export function sanitizeInput(str) {
+export function sanitizeInput(str: string | null | undefined): string | null | undefined {
   if (!str) return str;
   return str
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
@@ -164,17 +167,17 @@ export function sanitizeInput(str) {
     .replace(/javascript:/gi, '');
 }
 
-export function sanitizeObject(obj) {
+export function sanitizeObject<T extends Record<string, unknown>>(obj: T): T {
   if (!obj || typeof obj !== 'object') return obj;
-  const result = {};
+  const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === 'string') {
       result[key] = sanitizeInput(value);
     } else if (typeof value === 'object' && value !== null) {
-      result[key] = sanitizeObject(value);
+      result[key] = sanitizeObject(value as Record<string, unknown>);
     } else {
       result[key] = value;
     }
   }
-  return result;
+  return result as T;
 }

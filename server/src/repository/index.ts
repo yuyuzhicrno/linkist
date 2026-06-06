@@ -1,7 +1,10 @@
-import type { User, Post, Channel, DirectMessage, Notification, Tag, Poll, Comment, Reply, ChannelMessage, DmMessage, Column, ColumnArticle } from '../types';
+import type { User, Post, Channel, DirectMessage, Notification, Tag, Poll, Comment, Reply, ChannelMessage, DmMessage, Column, ColumnArticle, Debate, DebateArgument, DebateVote } from '../types';
 
 export interface Repository {
   type: 'file' | 'postgres';
+  
+  init(): Promise<void>;
+  close(): Promise<void>;
   
   users(): Promise<User[]>;
   userById(id: string): Promise<User | null>;
@@ -31,6 +34,7 @@ export interface Repository {
   createNotification(notification: Omit<Notification, 'createdAt' | 'isRead'>): Promise<Notification>;
   markNotificationRead(id: string): Promise<Notification | null>;
   markAllNotificationsRead(userId: string): Promise<void>;
+  deleteNotification(id: string): Promise<boolean>;
 
   tags(): Promise<Tag[]>;
   upsertTag(name: string, color?: string): Promise<Tag>;
@@ -42,12 +46,26 @@ export interface Repository {
   updatePoll(id: string, updates: Partial<Poll>): Promise<Poll | null>;
   deletePoll(id: string): Promise<boolean>;
 
+  debates(options?: { limit?: number; offset?: number }): Promise<{ debates: Debate[]; total: number }>;
+  debateById(id: string): Promise<Debate | null>;
+  createDebate(debate: Omit<Debate, 'createdAt'>): Promise<Debate>;
+  updateDebate(id: string, updates: Partial<Debate>): Promise<Debate | null>;
+  
+  debateArguments(debateId: string): Promise<DebateArgument[]>;
+  createDebateArgument(argument: Omit<DebateArgument, 'createdAt'>): Promise<DebateArgument>;
+  
+  createDebateVote(vote: Omit<DebateVote, 'createdAt'>): Promise<DebateVote>;
+  getDebateVote(debateId: string, userId: string): Promise<DebateVote | null>;
+  updateDebateVote(id: string, updates: Partial<DebateVote>): Promise<DebateVote | null>;
+  removeDebateVote(id: string): Promise<boolean>;
+
   commentById(id: string): Promise<Comment | null>;
   postComments(postId: string): Promise<Comment[]>;
   createComment(comment: Omit<Comment, 'createdAt' | 'upvotes' | 'replyCount'>): Promise<Comment>;
   updateComment(id: string, updates: Partial<Comment>): Promise<Comment | null>;
   deleteComment(id: string): Promise<boolean>;
   commentUpvote(commentId: string, userId: string): Promise<Comment | null>;
+  commentDownvote(commentId: string, userId: string): Promise<Comment | null>;
   commentReplies(commentId: string): Promise<Reply[]>;
   createReply(reply: Omit<Reply, 'createdAt'>): Promise<Reply>;
 

@@ -6,6 +6,9 @@ import PostDetailPage from './pages/PostDetailPage.jsx';
 import NewPostPage from './pages/NewPostPage.jsx';
 import ChannelsPage from './pages/ChannelsPage.jsx';
 import ColumnsPage from './pages/ColumnsPage.jsx';
+import DebatesPage from './pages/DebatesPage.jsx';
+import DebateDetailPage from './pages/DebateDetailPage.jsx';
+import NewDebatePage from './pages/NewDebatePage.jsx';
 import { LoginPage, RegisterPage } from './pages/AuthPages.jsx';
 import UserProfilePage from './pages/UserProfilePage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
@@ -22,6 +25,11 @@ export default function App() {
           <ProtectedRoute><NewPostPage /></ProtectedRoute>
         } />
         <Route path="/forum/:id" element={<PostDetailPage />} />
+        <Route path="/debates" element={<DebatesPage />} />
+        <Route path="/debates/new" element={
+          <ProtectedRoute><NewDebatePage /></ProtectedRoute>
+        } />
+        <Route path="/debates/:id" element={<DebateDetailPage />} />
         <Route path="/columns" element={<ColumnsPage />} />
         <Route path="/columns/:columnId" element={<ColumnsPage />} />
         <Route path="/columns/:columnId/articles/:articleId" element={<ColumnsPage />} />

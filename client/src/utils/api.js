@@ -34,6 +34,16 @@ export const api = {
   createPoll: (data) => request('POST', '/polls', data),
   votePoll: (id, optionIds) => request('POST', `/polls/${id}/vote`, { optionIds }),
 
+  // Debates
+  getDebates: () => request('GET', '/debates'),
+  getDebate: (id) => request('GET', `/debates/${id}`),
+  getDebateArguments: (id) => request('GET', `/debates/${id}/arguments`),
+  getDebateVote: (id) => request('GET', `/debates/${id}/vote`),
+  createDebate: (data) => request('POST', '/debates', data),
+  addDebateArgument: (id, data) => request('POST', `/debates/${id}/argument`, data),
+  voteDebate: (id, side) => request('POST', `/debates/${id}/vote`, { side }),
+  resolveDebate: (id) => request('POST', `/debates/${id}/resolve`, {}),
+
   // Friends & DMs
   getFriends: () => request('GET', '/friends'),
   sendFriendRequest: (targetId) => request('POST', `/friends/request/${targetId}`, {}),

@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -7,7 +7,7 @@ import http from 'http';
 import rateLimit from 'express-rate-limit';
 import { initDatabase } from './data/db.js';
 import { initSocket } from './services/socket.js';
-import { validateConfig, getJwtSecret } from './config/index.js';
+import { validateConfig } from './config/index.js';
 import { initServices } from './services-registry.js';
 import { authRouter } from './routes/auth.js';
 import { channelsRouter } from './routes/channels.js';
@@ -19,6 +19,7 @@ import { friendsRouter } from './routes/friends.js';
 import { tagsRouter } from './routes/tags.js';
 import { pollsRouter } from './routes/polls.js';
 import { notificationsRouter } from './routes/notifications.js';
+import { debatesRouter } from './routes/debates.js';
 import logger from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
@@ -81,6 +82,7 @@ app.use('/api/friends', friendsRouter);
 app.use('/api/tags', tagsRouter);
 app.use('/api/polls', pollsRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/debates', debatesRouter);
 
 app.get('/api/health', (_, res) => {
   res.json({
@@ -135,11 +137,11 @@ if (NODE_ENV === 'production') {
   });
 }
 
-app.use((err, req, res, next) => {
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   errorHandler(err, req, res, next);
 });
 
-app.use((req, res) => {
+app.use((req: Request, res: Response) => {
   notFoundHandler(req, res);
 });
 

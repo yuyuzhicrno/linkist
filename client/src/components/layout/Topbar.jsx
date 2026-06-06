@@ -6,6 +6,7 @@ import { Avatar } from '../ui/Avatar.jsx';
 const NAV = [
   { to: '/', icon: HomeIcon, label: '首页' },
   { to: '/forum', icon: ForumIcon, label: '讨论区' },
+  { to: '/debates', icon: DebateIcon, label: '争辩帖' },
   { to: '/channels', icon: ChannelIcon, label: '频道' },
   { to: '/columns', icon: ColumnIcon, label: '专栏' },
 ];
@@ -21,6 +22,13 @@ function ForumIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
       <path strokeLinecap="round" strokeLinejoin="round" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+    </svg>
+  );
+}
+function DebateIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
     </svg>
   );
 }
